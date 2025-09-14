@@ -99,7 +99,7 @@ export default function ProfilePage() {
         .select('likes_count')
         .eq('created_by', user.id)
 
-      const likesCount = userRecipes?.reduce((total, recipe) => total + (recipe.likes_count || 0), 0) || 0
+      const likesCount = userRecipes?.reduce((total: number, recipe) => total + (recipe.likes_count || 0), 0) || 0
 
       setStats({
         recipesCount: recipesCount || 0,
