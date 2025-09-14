@@ -9,6 +9,7 @@ import { User, Settings, Camera, Users, Heart, Clock, ChefHat } from 'lucide-rea
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
+
 interface Profile {
   id: string
   username: string
