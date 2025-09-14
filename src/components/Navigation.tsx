@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Home, Heart, Plus, ChefHat } from 'lucide-react'
+import { Home, Heart, Plus, ChefHat, User } from 'lucide-react'
 
 export const Navigation = () => {
   return (
@@ -22,6 +22,9 @@ export const Navigation = () => {
             </Link>
             <Link href="/liked" className="p-2 rounded-full hover:bg-gray-100 transition-all hover:scale-110">
               <Heart className="w-6 h-6 text-gray-700 hover:text-red-500 transition-colors" />
+            </Link>
+            <Link href="/profile" className="p-2 rounded-full hover:bg-gray-100 transition-all hover:scale-110">
+              <User className="w-6 h-6 text-gray-700 hover:text-orange-500 transition-colors" />
             </Link>
           </div>
         </div>
