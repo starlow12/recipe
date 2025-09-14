@@ -26,6 +26,16 @@ interface ProfileStats {
   likesCount: number
 }
 
+interface SavedRecipeData {
+  recipe_id: string
+  recipes: Recipe
+}
+
+interface LikedRecipeData {
+  recipe_id: string
+  recipes: Recipe
+}
+
 type TabType = 'recipes' | 'saved' | 'liked'
 
 export default function ProfilePage() {
@@ -152,7 +162,9 @@ export default function ProfilePage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setSavedRecipes(data?.map(item => item.recipes).filter(Boolean) || [])
+      
+      const savedRecipesData = data as SavedRecipeData[]
+      setSavedRecipes(savedRecipesData?.map((item: SavedRecipeData) => item.recipes).filter(Boolean) || [])
     } catch (error) {
       console.error('Error fetching saved recipes:', error)
     }
@@ -178,13 +190,15 @@ export default function ProfilePage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setLikedRecipes(data?.map(item => item.recipes).filter(Boolean) || [])
+      
+      const likedRecipesData = data as LikedRecipeData[]
+      setLikedRecipes(likedRecipesData?.map((item: LikedRecipeData) => item.recipes).filter(Boolean) || [])
     } catch (error) {
       console.error('Error fetching liked recipes:', error)
     }
   }
 
-  const getCurrentRecipes = () => {
+  const getCurrentRecipes = (): Recipe[] => {
     switch (activeTab) {
       case 'recipes':
         return recipes
@@ -197,7 +211,7 @@ export default function ProfilePage() {
     }
   }
 
-  const getCurrentCount = () => {
+  const getCurrentCount = (): number => {
     switch (activeTab) {
       case 'recipes':
         return stats.recipesCount
@@ -339,7 +353,7 @@ export default function ProfilePage() {
               </div>
             ) : getCurrentRecipes().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {getCurrentRecipes().map((recipe) => (
+                {getCurrentRecipes().map((recipe: Recipe) => (
                   <Link href={`/recipe/${recipe.id}`} key={recipe.id}>
                     <div className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer group">
                       <div className="aspect-square bg-gradient-to-br from-orange-200 to-red-200 flex items-center justify-center group-hover:scale-105 transition-transform relative overflow-hidden">
