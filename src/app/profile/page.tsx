@@ -1,10 +1,226 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Navigation } from '../../components/Navigation'
-import { User, Settings, Camera, Users, Heart } from 'lucide-react'
+import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../lib/supabase'
+import { Recipe } from '../../lib/types'
+import { User, Settings, Camera, Users, Heart, Clock, ChefHat } from 'lucide-react'
+import Link from 'next/link'
+import toast from 'react-hot-toast'
+
+interface Profile {
+  id: string
+  username: string
+  full_name: string | null
+  avatar_url: string | null
+  bio: string | null
+  email: string
+  created_at: string
+}
+
+interface ProfileStats {
+  recipesCount: number
+  followersCount: number
+  followingCount: number
+  likesCount: number
+}
+
+type TabType = 'recipes' | 'saved' | 'liked'
 
 export default function ProfilePage() {
+  const { user, loading } = useAuth()
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [stats, setStats] = useState<ProfileStats>({
+    recipesCount: 0,
+    followersCount: 0,
+    followingCount: 0,
+    likesCount: 0
+  })
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([])
+  const [likedRecipes, setLikedRecipes] = useState<Recipe[]>([])
+  const [activeTab, setActiveTab] = useState<TabType>('recipes')
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile()
+      fetchStats()
+      fetchUserRecipes()
+      fetchSavedRecipes()
+      fetchLikedRecipes()
+    }
+  }, [user])
+
+  const fetchProfile = async () => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (error) throw error
+      setProfile(data)
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      toast.error('Failed to load profile')
+    }
+  }
+
+  const fetchStats = async () => {
+    if (!user) return
+
+    try {
+      // Get recipes count
+      const { count: recipesCount } = await supabase
+        .from('recipes')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', user.id)
+
+      // Get followers count
+      const { count: followersCount } = await supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('following_id', user.id)
+
+      // Get following count
+      const { count: followingCount } = await supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', user.id)
+
+      // Get total likes on user's recipes
+      const { data: userRecipes } = await supabase
+        .from('recipes')
+        .select('likes_count')
+        .eq('created_by', user.id)
+
+      const likesCount = userRecipes?.reduce((total, recipe) => total + (recipe.likes_count || 0), 0) || 0
+
+      setStats({
+        recipesCount: recipesCount || 0,
+        followersCount: followersCount || 0,
+        followingCount: followingCount || 0,
+        likesCount
+      })
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
+
+  const fetchUserRecipes = async () => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase
+        .from('recipes')
+        .select('*')
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setRecipes(data || [])
+    } catch (error) {
+      console.error('Error fetching user recipes:', error)
+      toast.error('Failed to load recipes')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const fetchSavedRecipes = async () => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase
+        .from('saved_recipes')
+        .select(`
+          recipe_id,
+          recipes (
+            *,
+            profiles (
+              username,
+              full_name
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setSavedRecipes(data?.map(item => item.recipes).filter(Boolean) || [])
+    } catch (error) {
+      console.error('Error fetching saved recipes:', error)
+    }
+  }
+
+  const fetchLikedRecipes = async () => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase
+        .from('likes')
+        .select(`
+          recipe_id,
+          recipes (
+            *,
+            profiles (
+              username,
+              full_name
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setLikedRecipes(data?.map(item => item.recipes).filter(Boolean) || [])
+    } catch (error) {
+      console.error('Error fetching liked recipes:', error)
+    }
+  }
+
+  const getCurrentRecipes = () => {
+    switch (activeTab) {
+      case 'recipes':
+        return recipes
+      case 'saved':
+        return savedRecipes
+      case 'liked':
+        return likedRecipes
+      default:
+        return recipes
+    }
+  }
+
+  const getCurrentCount = () => {
+    switch (activeTab) {
+      case 'recipes':
+        return stats.recipesCount
+      case 'saved':
+        return savedRecipes.length
+      case 'liked':
+        return likedRecipes.length
+      default:
+        return stats.recipesCount
+    }
+  }
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-yellow-50">
+        <Navigation />
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500"></div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-yellow-50">
       <Navigation />
@@ -15,8 +231,16 @@ export default function ProfilePage() {
           <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
             {/* Profile Picture */}
             <div className="relative">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg">
-                <User className="w-16 h-16 text-white" />
+              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg overflow-hidden">
+                {profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt={profile.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-16 h-16 text-white" />
+                )}
               </div>
               <button className="absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-lg hover:scale-110 transition-transform">
                 <Camera className="w-5 h-5 text-gray-600" />
@@ -27,34 +251,46 @@ export default function ProfilePage() {
             <div className="flex-1 text-center md:text-left">
               <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2 md:mb-0">
-                  @foodlover2024
+                  @{profile?.username || 'user'}
                 </h1>
-                <button className="bg-gray-100 hover:bg-gray-200 px-6 py-2 rounded-full transition-colors">
-                  <Settings className="w-4 h-4 inline mr-2" />
+                <Link 
+                  href="/profile/edit"
+                  className="bg-gray-100 hover:bg-gray-200 px-6 py-2 rounded-full transition-colors inline-flex items-center"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
                   Edit Profile
-                </button>
+                </Link>
               </div>
+
+              {profile?.full_name && (
+                <h2 className="text-xl text-gray-700 mb-4 font-medium">
+                  {profile.full_name}
+                </h2>
+              )}
 
               {/* Stats */}
               <div className="flex justify-center md:justify-start space-x-8 mb-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">12</div>
+                  <div className="text-2xl font-bold text-gray-900">{stats.recipesCount}</div>
                   <div className="text-sm text-gray-600">Recipes</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">456</div>
+                <div className="text-center cursor-pointer hover:text-orange-500 transition-colors">
+                  <div className="text-2xl font-bold text-gray-900">{stats.followersCount}</div>
                   <div className="text-sm text-gray-600">Followers</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">89</div>
+                <div className="text-center cursor-pointer hover:text-orange-500 transition-colors">
+                  <div className="text-2xl font-bold text-gray-900">{stats.followingCount}</div>
                   <div className="text-sm text-gray-600">Following</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900">{stats.likesCount}</div>
+                  <div className="text-sm text-gray-600">Total Likes</div>
                 </div>
               </div>
 
               {/* Bio */}
               <p className="text-gray-600 max-w-md">
-                Home chef passionate about healthy, delicious meals. 
-                Love experimenting with Mediterranean and Asian cuisines! 🥗🍜
+                {profile?.bio || "No bio yet. Share something about your cooking journey! 👨‍🍳"}
               </p>
             </div>
           </div>
@@ -63,44 +299,123 @@ export default function ProfilePage() {
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-lg">
           <div className="flex border-b border-gray-200">
-            <button className="flex-1 py-4 px-6 text-center font-medium text-orange-500 border-b-2 border-orange-500">
-              My Recipes (12)
+            <button 
+              onClick={() => setActiveTab('recipes')}
+              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                activeTab === 'recipes' 
+                  ? 'text-orange-500 border-b-2 border-orange-500' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              My Recipes ({stats.recipesCount})
             </button>
-            <button className="flex-1 py-4 px-6 text-center font-medium text-gray-500 hover:text-gray-700 transition-colors">
-              Saved Recipes (8)
+            <button 
+              onClick={() => setActiveTab('saved')}
+              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                activeTab === 'saved' 
+                  ? 'text-orange-500 border-b-2 border-orange-500' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Saved Recipes ({savedRecipes.length})
             </button>
-            <button className="flex-1 py-4 px-6 text-center font-medium text-gray-500 hover:text-gray-700 transition-colors">
-              Liked Recipes (24)
+            <button 
+              onClick={() => setActiveTab('liked')}
+              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                activeTab === 'liked' 
+                  ? 'text-orange-500 border-b-2 border-orange-500' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Liked Recipes ({likedRecipes.length})
             </button>
           </div>
 
           {/* Recipe Grid */}
           <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Sample Recipe Cards */}
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer group">
-                  <div className="aspect-square bg-gradient-to-br from-orange-200 to-red-200 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <span className="text-4xl">🍝</span>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1">
-                      Delicious Recipe {i}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-2">
-                      A tasty dish that everyone will love
-                    </p>
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span>⏱️ 30 min</span>
-                      <div className="flex items-center space-x-1">
-                        <Heart className="w-4 h-4" />
-                        <span>24</span>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500"></div>
+              </div>
+            ) : getCurrentRecipes().length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {getCurrentRecipes().map((recipe) => (
+                  <Link href={`/recipe/${recipe.id}`} key={recipe.id}>
+                    <div className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer group">
+                      <div className="aspect-square bg-gradient-to-br from-orange-200 to-red-200 flex items-center justify-center group-hover:scale-105 transition-transform relative overflow-hidden">
+                        {recipe.image_url ? (
+                          <img 
+                            src={recipe.image_url} 
+                            alt={recipe.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-4xl">🍽️</span>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="bg-orange-100 text-orange-600 px-2 py-1 rounded-full text-xs font-medium">
+                            {recipe.category}
+                          </span>
+                          {activeTab !== 'recipes' && recipe.profiles && (
+                            <span className="text-xs text-gray-500">
+                              by {recipe.profiles.full_name || recipe.profiles.username}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
+                          {recipe.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                          {recipe.description}
+                        </p>
+                        <div className="flex items-center justify-between text-sm text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-3 h-3" />
+                            <span>{(recipe.prep_time || 0) + (recipe.cook_time || 0)} min</span>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center space-x-1">
+                              <ChefHat className="w-3 h-3" />
+                              <span>{recipe.servings}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Heart className="w-3 h-3" />
+                              <span>{recipe.likes_count || 0}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20">
+                <div className="text-6xl mb-4">
+                  {activeTab === 'recipes' ? '📝' : activeTab === 'saved' ? '🔖' : '❤️'}
                 </div>
-              ))}
-            </div>
+                <h3 className="text-xl font-medium text-gray-900 mb-2">
+                  {activeTab === 'recipes' && 'No recipes yet'}
+                  {activeTab === 'saved' && 'No saved recipes'}
+                  {activeTab === 'liked' && 'No liked recipes yet'}
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  {activeTab === 'recipes' && 'Start sharing your delicious recipes!'}
+                  {activeTab === 'saved' && 'Save recipes you want to try later'}
+                  {activeTab === 'liked' && 'Like recipes to see them here'}
+                </p>
+                {activeTab === 'recipes' && (
+                  <Link
+                    href="/create"
+                    className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-3 rounded-lg hover:scale-105 transition-transform font-semibold"
+                  >
+                    Create Your First Recipe
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
