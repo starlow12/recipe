@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, ChefHat } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+
 interface FormData {
   email: string
   password: string
