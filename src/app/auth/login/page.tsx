@@ -8,7 +8,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, ChefHat } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-
 interface FormData {
   email: string
   password: string
@@ -35,6 +34,8 @@ export default function LoginPage() {
     const message = searchParams.get('message')
     if (message === 'check-email') {
       toast.success('Please check your email and click the verification link to complete your registration.')
+    } else if (message === 'password-updated') {
+      toast.success('Password updated successfully! You can now sign in with your new password.')
     }
   }, [searchParams])
 
