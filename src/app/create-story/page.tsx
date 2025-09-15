@@ -1,15 +1,14 @@
 'use client'
 
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Navigation } from '@/components/Navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { 
-  Upload, X, Type, Camera, Video, ArrowLeft, Send, Palette,
-  Sparkles, RotateCw, Move, Trash2, Plus, Minus, Bold, Italic,
-  AlignCenter, AlignLeft, AlignRight, Circle, Square, Heart,
-  Star, Smile, Music, MapPin, Coffee, Sun, Moon, Zap, ChefHat, Search
+  Upload, X, Type, Camera, ArrowLeft, Send,
+  Sparkles, Trash2, Plus, Bold, Italic,
+  Smile, ChefHat, Palette
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -23,18 +22,14 @@ interface TextElement {
   fontFamily: string
   isBold: boolean
   isItalic: boolean
-  alignment: 'left' | 'center' | 'right'
-  rotation: number
 }
 
 interface Sticker {
   id: string
-  type: 'emoji' | 'icon'
   content: string
   x: number
   y: number
   size: number
-  rotation: number
 }
 
 interface Recipe {
@@ -48,97 +43,57 @@ interface Recipe {
   servings: number
 }
 
-interface FormData {
-  media: File | null
-  mediaType: 'image' | 'video' | null
-  textOverlay: string
-  backgroundColor: string
-  gradientType: 'solid' | 'gradient' | 'animated'
-  recipeId: string | null
-}
-
 export default function CreateStoryPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const storyContainerRef = useRef<HTMLDivElement>(null)
   
-  const [formData, setFormData] = useState<FormData>({
-    media: null,
-    mediaType: null,
-    textOverlay: '',
-    backgroundColor: '#FF6B35',
-    gradientType: 'gradient',
-    recipeId: null
-  })
-  
+  const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
+  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null)
+  const [backgroundColor, setBackgroundColor] = useState('#FF6B35')
   const [isLoading, setIsLoading] = useState(false)
-  const [currentTool, setCurrentTool] = useState<'media' | 'text' | 'draw' | 'stickers' | 'effects' | 'recipes'>('media')
+  const [currentTool, setCurrentTool] = useState<'media' | 'text' | 'stickers' | 'recipes' | 'effects'>('media')
+  
+  // Text elements
   const [textElements, setTextElements] = useState<TextElement[]>([])
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null)
+  const [newText, setNewText] = useState('')
+  
+  // Stickers
   const [stickers, setStickers] = useState<Sticker[]>([])
+  
+  // Recipe
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
-  const [newText, setNewText] = useState('')
-  const [isDrawing, setIsDrawing] = useState(false)
-  const [brushSize, setBrushSize] = useState(5)
-  const [brushColor, setBrushColor] = useState('#FFFFFF')
+  
+  // Dragging
   const [isDragging, setIsDragging] = useState(false)
+  const [dragElementId, setDragElementId] = useState<string | null>(null)
+  const [dragType, setDragType] = useState<'text' | 'sticker' | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
-  const [containerRect, setContainerRect] = useState<DOMRect | null>(null)
+
+  const backgroundColors = [
+    '#FF6B35', '#F7931E', '#FFD23F', '#06FFA5',
+    '#3CBCCF', '#1E88E5', '#5E35B1', '#E91E63',
+    '#FF5722', '#795548', '#607D8B', '#424242'
+  ]
 
   const backgroundGradients = [
     'linear-gradient(45deg, #FF6B6B, #4ECDC4)',
-    'linear-gradient(45deg, #A8E6CF, #DCEDC1)',
     'linear-gradient(45deg, #FFD93D, #6BCF7F)',
     'linear-gradient(45deg, #4FACFE, #00F2FE)',
-    'linear-gradient(45deg, #43E97B, #38F9D7)',
     'linear-gradient(45deg, #FA709A, #FEE140)',
     'linear-gradient(45deg, #A18CD1, #FBC2EB)',
-    'linear-gradient(45deg, #667eea, #764ba2)',
-    'linear-gradient(45deg, #f093fb, #f5576c)',
-    'linear-gradient(45deg, #4facfe, #00f2fe)',
-    'linear-gradient(45deg, #667db6, #0082c8, #0082c8, #667db6)',
-    'linear-gradient(45deg, #f12711, #f5af19)',
+    'linear-gradient(45deg, #667eea, #764ba2)'
   ]
 
   const storyStickers = [
-    { type: 'emoji', content: '❤️' },
-    { type: 'emoji', content: '😍' },
-    { type: 'emoji', content: '🔥' },
-    { type: 'emoji', content: '✨' },
-    { type: 'emoji', content: '🌟' },
-    { type: 'emoji', content: '💯' },
-    { type: 'emoji', content: '🎉' },
-    { type: 'emoji', content: '🌈' },
-    { type: 'emoji', content: '💫' },
-    { type: 'emoji', content: '🦋' },
-    { type: 'emoji', content: '🌸' },
-    { type: 'emoji', content: '🍕' },
+    '❤️', '😍', '🔥', '✨', '🌟', '💯', 
+    '🎉', '🌈', '💫', '🦋', '🌸', '🍕',
+    '☀️', '🌙', '⭐', '💖', '🎈', '🌻'
   ]
-
-  const fontFamilies = [
-    'Arial', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 
-    'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Palatino'
-  ]
-
-  useEffect(() => {
-    if (containerRef.current) {
-      setContainerRect(containerRef.current.getBoundingClientRect())
-    }
-
-    const handleResize = () => {
-      if (containerRef.current) {
-        setContainerRect(containerRef.current.getBoundingClientRect())
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   useEffect(() => {
     if (user) {
@@ -170,18 +125,6 @@ export default function CreateStoryPage() {
     }
   }
 
-  const getMousePosition = useCallback((e: React.MouseEvent<any>) => {
-    if (!containerRect) return { x: 0, y: 0 }
-    
-    const x = ((e.clientX - containerRect.left) / containerRect.width) * 100
-    const y = ((e.clientY - containerRect.top) / containerRect.height) * 100
-    
-    return { 
-      x: Math.max(0, Math.min(100, x)), 
-      y: Math.max(0, Math.min(100, y)) 
-    }
-  }, [containerRect])
-
   const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -199,11 +142,8 @@ export default function CreateStoryPage() {
       return
     }
 
-    setFormData(prev => ({
-      ...prev,
-      media: file,
-      mediaType: isImage ? 'image' : 'video'
-    }))
+    setMediaFile(file)
+    setMediaType(isImage ? 'image' : 'video')
 
     const reader = new FileReader()
     reader.onloadend = () => {
@@ -213,11 +153,8 @@ export default function CreateStoryPage() {
   }
 
   const removeMedia = () => {
-    setFormData(prev => ({
-      ...prev,
-      media: null,
-      mediaType: null
-    }))
+    setMediaFile(null)
+    setMediaType(null)
     setMediaPreview(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -230,20 +167,18 @@ export default function CreateStoryPage() {
     const newElement: TextElement = {
       id: Date.now().toString(),
       text: newText,
-      x: 25,
-      y: 30,
+      x: 50, // percentage
+      y: 50, // percentage
       fontSize: 24,
       color: '#FFFFFF',
       fontFamily: 'Arial',
       isBold: false,
-      isItalic: false,
-      alignment: 'center',
-      rotation: 0
+      isItalic: false
     }
 
     setTextElements(prev => [...prev, newElement])
     setNewText('')
-    setSelectedElementId(newElement.id)
+    setSelectedTextId(newElement.id)
   }
 
   const updateTextElement = (id: string, updates: Partial<TextElement>) => {
@@ -254,80 +189,16 @@ export default function CreateStoryPage() {
 
   const deleteTextElement = (id: string) => {
     setTextElements(prev => prev.filter(el => el.id !== id))
-    setSelectedElementId(null)
+    setSelectedTextId(null)
   }
 
-  const handleElementMouseDown = (e: React.MouseEvent, elementId: string, type: 'text' | 'sticker') => {
-    e.preventDefault()
-    e.stopPropagation()
-    
-    const pos = getMousePosition(e)
-    let element
-
-    if (type === 'text') {
-      element = textElements.find(el => el.id === elementId)
-      setSelectedElementId(elementId)
-    } else {
-      element = stickers.find(el => el.id === elementId)
-    }
-
-    if (element) {
-      setIsDragging(true)
-      setDragOffset({
-        x: pos.x - element.x,
-        y: pos.y - element.y
-      })
-    }
-  }
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<any>) => {
-    if (!isDragging || !selectedElementId) return
-
-    const pos = getMousePosition(e)
-    const newX = pos.x - dragOffset.x
-    const newY = pos.y - dragOffset.y
-
-    // Update text element position
-    const textElement = textElements.find(el => el.id === selectedElementId)
-    if (textElement) {
-      updateTextElement(selectedElementId, {
-        x: Math.max(0, Math.min(90, newX)),
-        y: Math.max(0, Math.min(90, newY))
-      })
-      return
-    }
-
-    // Update sticker position
-    const sticker = stickers.find(el => el.id === selectedElementId)
-    if (sticker) {
-      setStickers(prev =>
-        prev.map(el =>
-          el.id === selectedElementId
-            ? {
-                ...el,
-                x: Math.max(0, Math.min(containerRect ? containerRect.width - 50 : 250, (newX / 100) * (containerRect?.width || 300))),
-                y: Math.max(0, Math.min(containerRect ? containerRect.height - 50 : 450, (newY / 100) * (containerRect?.height || 533)))
-              }
-            : el
-        )
-      )
-    }
-  }, [isDragging, selectedElementId, dragOffset, getMousePosition, textElements, stickers, containerRect])
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-    setDragOffset({ x: 0, y: 0 })
-  }, [])
-
-  const addSticker = (sticker: { type: string, content: string }) => {
+  const addSticker = (emoji: string) => {
     const newSticker: Sticker = {
       id: Date.now().toString(),
-      type: sticker.type as 'emoji' | 'icon',
-      content: sticker.content,
-      x: Math.random() * 200 + 50,
-      y: Math.random() * 300 + 100,
-      size: 40,
-      rotation: 0
+      content: emoji,
+      x: Math.random() * 60 + 20, // percentage
+      y: Math.random() * 60 + 20, // percentage
+      size: 40
     }
 
     setStickers(prev => [...prev, newSticker])
@@ -337,89 +208,89 @@ export default function CreateStoryPage() {
     setStickers(prev => prev.filter(s => s.id !== id))
   }
 
-  const getCanvasPosition = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    if (!canvas || !containerRect) return { x: 0, y: 0 }
-    
-    const rect = canvas.getBoundingClientRect()
-    return {
-      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((e.clientY - rect.top) / rect.height) * canvas.height
-    }
-  }
-
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (currentTool !== 'draw') return
-    setIsDrawing(true)
-    
-    const canvas = canvasRef.current
-    if (!canvas) return
-    
-    const pos = getCanvasPosition(e)
-    
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    
-    ctx.beginPath()
-    ctx.moveTo(pos.x, pos.y)
-  }
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || currentTool !== 'draw') return
-    
-    const canvas = canvasRef.current
-    if (!canvas) return
-    
-    const pos = getCanvasPosition(e)
-    
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    
-    ctx.lineWidth = brushSize
-    ctx.lineCap = 'round'
-    ctx.strokeStyle = brushColor
-    ctx.lineTo(pos.x, pos.y)
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.moveTo(pos.x, pos.y)
-  }
-
-  const stopDrawing = () => {
-    setIsDrawing(false)
-  }
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-  }
-
   const selectRecipe = (recipe: Recipe) => {
     setSelectedRecipe(recipe)
-    setFormData(prev => ({ ...prev, recipeId: recipe.id }))
     toast.success(`Recipe "${recipe.title}" added to story!`)
   }
 
   const removeRecipe = () => {
     setSelectedRecipe(null)
-    setFormData(prev => ({ ...prev, recipeId: null }))
+  }
+
+  // Mouse events for dragging
+  const handleMouseDown = (e: React.MouseEvent, elementId: string, type: 'text' | 'sticker') => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    setIsDragging(true)
+    setDragElementId(elementId)
+    setDragType(type)
+    
+    if (type === 'text') {
+      setSelectedTextId(elementId)
+    }
+
+    const rect = storyContainerRef.current?.getBoundingClientRect()
+    if (rect) {
+      let element
+      if (type === 'text') {
+        element = textElements.find(el => el.id === elementId)
+      } else {
+        element = stickers.find(el => el.id === elementId)
+      }
+      
+      if (element) {
+        setDragOffset({
+          x: e.clientX - rect.left - (element.x / 100) * rect.width,
+          y: e.clientY - rect.top - (element.y / 100) * rect.height
+        })
+      }
+    }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !dragElementId || !dragType) return
+
+    const rect = storyContainerRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const x = ((e.clientX - rect.left - dragOffset.x) / rect.width) * 100
+    const y = ((e.clientY - rect.top - dragOffset.y) / rect.height) * 100
+
+    const clampedX = Math.max(0, Math.min(90, x))
+    const clampedY = Math.max(0, Math.min(90, y))
+
+    if (dragType === 'text') {
+      updateTextElement(dragElementId, { x: clampedX, y: clampedY })
+    } else {
+      setStickers(prev =>
+        prev.map(el =>
+          el.id === dragElementId
+            ? { ...el, x: clampedX, y: clampedY }
+            : el
+        )
+      )
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+    setDragElementId(null)
+    setDragType(null)
+    setDragOffset({ x: 0, y: 0 })
   }
 
   const uploadMedia = async (): Promise<string | null> => {
-    if (!formData.media || !user) return null
+    if (!mediaFile || !user) return null
 
     try {
-      const fileExt = formData.media.name.split('.').pop()
+      const fileExt = mediaFile.name.split('.').pop()
       const fileName = `story-${user.id}-${Date.now()}.${fileExt}`
       const filePath = `stories/${fileName}`
 
       const { error: uploadError } = await supabase.storage
         .from('stories')
-        .upload(filePath, formData.media)
+        .upload(filePath, mediaFile)
 
       if (uploadError) {
         console.error('Upload error:', uploadError)
@@ -444,7 +315,7 @@ export default function CreateStoryPage() {
       return
     }
 
-    if (!formData.media && !formData.textOverlay.trim() && textElements.length === 0 && !selectedRecipe) {
+    if (!mediaFile && textElements.length === 0 && !selectedRecipe) {
       toast.error('Please add some content to your story')
       return
     }
@@ -453,30 +324,41 @@ export default function CreateStoryPage() {
 
     try {
       let mediaUrl = null
+      let finalMediaType = 'image'
       
-      if (formData.media) {
+      if (mediaFile) {
         mediaUrl = await uploadMedia()
-        if (formData.media && !mediaUrl) {
+        if (!mediaUrl) {
           setIsLoading(false)
           return
         }
+        finalMediaType = mediaType || 'image'
+      } else {
+        // Create a simple colored background as image
+        mediaUrl = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="533" viewBox="0 0 300 533"><rect width="300" height="533" fill="${encodeURIComponent(backgroundColor)}"/></svg>`
+        finalMediaType = 'image'
       }
 
       const expiresAt = new Date()
       expiresAt.setHours(expiresAt.getHours() + 24)
 
-      // Create story with enhanced data
+      // Create text overlay from elements
+      let textOverlay = null
+      if (textElements.length > 0) {
+        textOverlay = JSON.stringify({
+          elements: textElements,
+          stickers: stickers
+        })
+      }
+
       const { error } = await supabase
         .from('stories')
         .insert({
           user_id: user.id,
-          media_url: mediaUrl || null,
-          media_type: formData.media ? formData.mediaType : 'image',
-          text_overlay: formData.textOverlay.trim() || null,
-          background_style: formData.gradientType === 'solid' ? formData.backgroundColor : backgroundGradients[0],
-          text_elements: textElements.length > 0 ? JSON.stringify(textElements) : null,
-          stickers: stickers.length > 0 ? JSON.stringify(stickers) : null,
-          recipe_id: formData.recipeId,
+          media_url: mediaUrl,
+          media_type: finalMediaType,
+          text_overlay: textOverlay,
+          recipe_id: selectedRecipe?.id || null,
           expires_at: expiresAt.toISOString(),
           created_at: new Date().toISOString()
         })
@@ -487,7 +369,7 @@ export default function CreateStoryPage() {
         return
       }
 
-      toast.success('Story created successfully!')
+      toast.success('Story created successfully! 🎉')
       router.push('/')
 
     } catch (error) {
@@ -498,7 +380,7 @@ export default function CreateStoryPage() {
     }
   }
 
-  const selectedTextElement = textElements.find(el => el.id === selectedElementId)
+  const selectedTextElement = textElements.find(el => el.id === selectedTextId)
 
   if (loading) {
     return (
@@ -526,34 +408,35 @@ export default function CreateStoryPage() {
           <button
             onClick={handleSubmit}
             disabled={isLoading}
-            className="bg-blue-600 px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 rounded-full text-sm font-medium hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 transition-all flex items-center space-x-2"
           >
-            {isLoading ? 'Sharing...' : 'Share'}
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Sharing...</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Share</span>
+              </>
+            )}
           </button>
         </div>
 
         {/* Story Canvas */}
         <div 
-          ref={containerRef}
-          className="aspect-[9/16] relative overflow-hidden cursor-pointer select-none"
+          ref={storyContainerRef}
+          className="aspect-[9/16] relative overflow-hidden select-none"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          style={{ background: backgroundColor }}
         >
-          {/* Background */}
-          <div 
-            className="absolute inset-0"
-            style={{ 
-              background: formData.gradientType === 'solid' 
-                ? formData.backgroundColor 
-                : backgroundGradients[0]
-            }}
-          />
-          
-          {/* Media */}
+          {/* Media Background */}
           {mediaPreview && (
             <div className="absolute inset-0">
-              {formData.mediaType === 'image' ? (
+              {mediaType === 'image' ? (
                 <img 
                   src={mediaPreview} 
                   alt="Story media"
@@ -561,7 +444,6 @@ export default function CreateStoryPage() {
                 />
               ) : (
                 <video 
-                  ref={videoRef}
                   src={mediaPreview}
                   className="w-full h-full object-cover"
                   muted
@@ -571,24 +453,11 @@ export default function CreateStoryPage() {
             </div>
           )}
 
-          {/* Drawing Canvas */}
-          <canvas
-            ref={canvasRef}
-            width={300}
-            height={533}
-            className="absolute inset-0 w-full h-full"
-            style={{ touchAction: 'none', pointerEvents: currentTool === 'draw' ? 'auto' : 'none' }}
-            onMouseDown={startDrawing}
-            onMouseMove={draw}
-            onMouseUp={stopDrawing}
-            onMouseLeave={stopDrawing}
-          />
-
           {/* Recipe Card */}
           {selectedRecipe && (
-            <div className="absolute top-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg">
+            <div className="absolute top-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg z-20">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200">
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
                   {selectedRecipe.image_url ? (
                     <img 
                       src={selectedRecipe.image_url} 
@@ -611,7 +480,7 @@ export default function CreateStoryPage() {
                 </div>
                 <button
                   onClick={removeRecipe}
-                  className="p-1 text-gray-400 hover:text-gray-600"
+                  className="p-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -624,7 +493,7 @@ export default function CreateStoryPage() {
             <div
               key={element.id}
               className={`absolute cursor-move select-none transition-all ${
-                selectedElementId === element.id ? 'ring-2 ring-blue-400 ring-opacity-50' : ''
+                selectedTextId === element.id ? 'ring-2 ring-blue-400 ring-opacity-75' : ''
               }`}
               style={{
                 left: `${element.x}%`,
@@ -634,16 +503,12 @@ export default function CreateStoryPage() {
                 fontFamily: element.fontFamily,
                 fontWeight: element.isBold ? 'bold' : 'normal',
                 fontStyle: element.isItalic ? 'italic' : 'normal',
-                textAlign: element.alignment,
-                transform: `rotate(${element.rotation}deg)`,
-                textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-                pointerEvents: 'auto'
+                textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
+                transform: 'translate(-50%, -50%)',
+                maxWidth: '80%',
+                wordWrap: 'break-word'
               }}
-              onMouseDown={(e) => handleElementMouseDown(e, element.id, 'text')}
-              onClick={(e) => {
-                e.stopPropagation()
-                setSelectedElementId(element.id)
-              }}
+              onMouseDown={(e) => handleMouseDown(e, element.id, 'text')}
             >
               {element.text}
             </div>
@@ -655,13 +520,12 @@ export default function CreateStoryPage() {
               key={sticker.id}
               className="absolute cursor-move select-none hover:scale-110 transition-transform"
               style={{
-                left: `${sticker.x}px`,
-                top: `${sticker.y}px`,
+                left: `${sticker.x}%`,
+                top: `${sticker.y}%`,
                 fontSize: `${sticker.size}px`,
-                transform: `rotate(${sticker.rotation}deg)`,
-                pointerEvents: 'auto'
+                transform: 'translate(-50%, -50%)'
               }}
-              onMouseDown={(e) => handleElementMouseDown(e, sticker.id, 'sticker')}
+              onMouseDown={(e) => handleMouseDown(e, sticker.id, 'sticker')}
               onDoubleClick={() => deleteSticker(sticker.id)}
             >
               {sticker.content}
@@ -682,11 +546,10 @@ export default function CreateStoryPage() {
         {/* Bottom Tools */}
         <div className="p-4 space-y-4">
           {/* Tool Selector */}
-          <div className="flex items-center justify-center space-x-1 overflow-x-auto pb-2">
+          <div className="flex items-center justify-center space-x-2 overflow-x-auto pb-2">
             {[
               { id: 'media', icon: Camera, label: 'Media' },
               { id: 'text', icon: Type, label: 'Text' },
-              { id: 'draw', icon: Circle, label: 'Draw' },
               { id: 'stickers', icon: Smile, label: 'Stickers' },
               { id: 'recipes', icon: ChefHat, label: 'Recipes' },
               { id: 'effects', icon: Sparkles, label: 'Effects' }
@@ -760,30 +623,16 @@ export default function CreateStoryPage() {
                       </button>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Size</label>
-                        <input
-                          type="range"
-                          min="12"
-                          max="60"
-                          value={selectedTextElement.fontSize}
-                          onChange={(e) => updateTextElement(selectedTextElement.id, { fontSize: parseInt(e.target.value) })}
-                          className="w-full"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Rotation</label>
-                        <input
-                          type="range"
-                          min="-180"
-                          max="180"
-                          value={selectedTextElement.rotation}
-                          onChange={(e) => updateTextElement(selectedTextElement.id, { rotation: parseInt(e.target.value) })}
-                          className="w-full"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Font Size</label>
+                      <input
+                        type="range"
+                        min="16"
+                        max="48"
+                        value={selectedTextElement.fontSize}
+                        onChange={(e) => updateTextElement(selectedTextElement.id, { fontSize: parseInt(e.target.value) })}
+                        className="w-full"
+                      />
                     </div>
 
                     <div className="flex space-x-2">
@@ -818,44 +667,6 @@ export default function CreateStoryPage() {
               </div>
             )}
 
-            {/* Drawing Tools */}
-            {currentTool === 'draw' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-white text-sm">Brush Size</span>
-                  <input
-                    type="range"
-                    min="1"
-                    max="20"
-                    value={brushSize}
-                    onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                    className="flex-1 ml-4"
-                  />
-                  <span className="text-white text-sm ml-2">{brushSize}px</span>
-                </div>
-
-                <div className="grid grid-cols-6 gap-2">
-                  {['#FFFFFF', '#000000', '#FF6B35', '#3CBCCF', '#FFD23F', '#E91E63'].map(color => (
-                    <button
-                      key={color}
-                      onClick={() => setBrushColor(color)}
-                      className={`w-10 h-10 rounded border-2 ${
-                        brushColor === color ? 'border-blue-400' : 'border-gray-600'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-
-                <button
-                  onClick={clearCanvas}
-                  className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700"
-                >
-                  Clear Drawing
-                </button>
-              </div>
-            )}
-
             {/* Stickers */}
             {currentTool === 'stickers' && (
               <div className="space-y-4">
@@ -864,9 +675,9 @@ export default function CreateStoryPage() {
                     <button
                       key={index}
                       onClick={() => addSticker(sticker)}
-                      className="text-3xl p-2 rounded-lg hover:bg-gray-800 transition-colors"
+                      className="text-2xl p-2 rounded-lg hover:bg-gray-800 transition-colors"
                     >
-                      {sticker.content}
+                      {sticker}
                     </button>
                   ))}
                 </div>
@@ -922,12 +733,28 @@ export default function CreateStoryPage() {
             {currentTool === 'effects' && (
               <div className="space-y-4">
                 <div>
-                  <p className="text-white text-sm mb-2">Background Style:</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {backgroundGradients.slice(0, 9).map((gradient, index) => (
+                  <p className="text-white text-sm mb-2">Background Colors:</p>
+                  <div className="grid grid-cols-6 gap-2">
+                    {backgroundColors.map((color, index) => (
                       <button
                         key={index}
-                        onClick={() => setFormData(prev => ({ ...prev, backgroundColor: gradient }))}
+                        onClick={() => setBackgroundColor(color)}
+                        className={`w-10 h-10 rounded-lg border-2 ${
+                          backgroundColor === color ? 'border-blue-400' : 'border-gray-600'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-white text-sm mb-2">Gradients:</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {backgroundGradients.map((gradient, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setBackgroundColor(gradient)}
                         className="w-full h-12 rounded-lg border-2 border-gray-600 hover:border-blue-400"
                         style={{ background: gradient }}
                       />
