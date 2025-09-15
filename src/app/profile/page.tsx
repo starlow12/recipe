@@ -240,11 +240,17 @@ export default function ProfilePage() {
         .getPublicUrl(filePath)
 
       const publicUrl = urlData.publicUrl
+      
+      // Debug: log the URL
+      console.log('Generated avatar URL:', publicUrl)
 
       // Update profile with new avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl })
+        .update({ 
+          avatar_url: publicUrl,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', user.id)
 
       if (updateError) {
@@ -253,8 +259,9 @@ export default function ProfilePage() {
         return
       }
 
-      // Update local state
+      // Update local state and refresh profile
       setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null)
+      await fetchProfile() // Refresh from database
       toast.success('Profile picture updated successfully!')
 
     } catch (error) {
