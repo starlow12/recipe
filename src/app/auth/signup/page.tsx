@@ -104,23 +104,31 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('Form submitted', formData) // Debug log
+    
     if (!validateForm()) {
+      console.log('Validation failed', errors) // Debug log
       toast.error('Please fix the errors below')
       return
     }
 
     setLoading(true)
+    console.log('Starting signup process') // Debug log
 
     try {
       // Check if username is available
+      console.log('Checking username availability') // Debug log
       const isUsernameAvailable = await checkUsernameAvailability(formData.username)
       if (!isUsernameAvailable) {
+        console.log('Username taken') // Debug log
         setErrors({ username: 'Username is already taken' })
         toast.error('Username is already taken')
         setLoading(false)
         return
       }
 
+      console.log('Username available, creating account') // Debug log
+      
       // Sign up with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -133,7 +141,10 @@ export default function SignUpPage() {
         }
       })
 
+      console.log('Auth result:', { authData, authError }) // Debug log
+
       if (authError) {
+        console.error('Auth error:', authError) // Debug log
         if (authError.message.includes('already registered')) {
           setErrors({ email: 'This email is already registered' })
           toast.error('This email is already registered')
@@ -144,6 +155,8 @@ export default function SignUpPage() {
       }
 
       if (authData.user) {
+        console.log('User created, creating profile') // Debug log
+        
         // Create profile record
         const { error: profileError } = await supabase
           .from('profiles')
@@ -154,12 +167,15 @@ export default function SignUpPage() {
             full_name: formData.fullName.trim()
           })
 
+        console.log('Profile creation result:', profileError) // Debug log
+
         if (profileError) {
           console.error('Profile creation error:', profileError)
           toast.error('Account created but profile setup failed. Please contact support.')
           return
         }
 
+        console.log('Success! Redirecting...') // Debug log
         toast.success('Account created successfully! Please check your email to verify your account.')
         router.push('/auth/login?message=check-email')
       }
