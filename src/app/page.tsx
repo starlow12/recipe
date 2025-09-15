@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Navigation } from '../components/Navigation'
+import { StoriesSection } from '../components/StoriesSection'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { Recipe } from '../lib/types'
@@ -97,6 +98,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-yellow-50">
       <Navigation />
+      
+      {/* Stories Section - only show when user is logged in */}
+      {user && <StoriesSection />}
       
       {!user ? (
         // Welcome section for non-logged in users
