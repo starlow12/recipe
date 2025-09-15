@@ -59,7 +59,7 @@ export default function LikedRecipesPage() {
       if (error) throw error
 
       // Filter out recipes that might have been deleted
-      const validLikedRecipes = (data || []).filter(item => item.recipes) as LikedRecipe[]
+      const validLikedRecipes = (data || []).filter((item: any) => item.recipes) as LikedRecipe[]
       setLikedRecipes(validLikedRecipes)
     } catch (error) {
       console.error('Error fetching liked recipes:', error)
