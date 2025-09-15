@@ -64,6 +64,18 @@ export default function ProfilePage() {
     }
   }, [user])
 
+  // Add this new useEffect to refresh when returning from edit page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        fetchProfile() // Refresh profile when page becomes visible
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [user])
+
   const fetchProfile = async () => {
     if (!user) return
 
