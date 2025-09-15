@@ -384,14 +384,14 @@ export default function ProfilePage() {
                   <div className="text-2xl font-bold text-gray-900">{stats.recipesCount}</div>
                   <div className="text-sm text-gray-600">Recipes</div>
                 </div>
-                <div className="text-center cursor-pointer hover:text-orange-500 transition-colors">
+                <Link href="/profile/followers?tab=followers" className="text-center cursor-pointer hover:text-orange-500 transition-colors">
                   <div className="text-2xl font-bold text-gray-900">{stats.followersCount}</div>
                   <div className="text-sm text-gray-600">Followers</div>
-                </div>
-                <div className="text-center cursor-pointer hover:text-orange-500 transition-colors">
+                </Link>
+                <Link href="/profile/followers?tab=following" className="text-center cursor-pointer hover:text-orange-500 transition-colors">
                   <div className="text-2xl font-bold text-gray-900">{stats.followingCount}</div>
                   <div className="text-sm text-gray-600">Following</div>
-                </div>
+                </Link>
               </div>
 
               {/* Bio */}
