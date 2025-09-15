@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Navigation } from '@/components/Navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -9,7 +9,7 @@ import {
   Upload, X, Type, Camera, Video, ArrowLeft, Send, Palette,
   Sparkles, RotateCw, Move, Trash2, Plus, Minus, Bold, Italic,
   AlignCenter, AlignLeft, AlignRight, Circle, Square, Heart,
-  Star, Smile, Music, MapPin, Coffee, Sun, Moon, Zap
+  Star, Smile, Music, MapPin, Coffee, Sun, Moon, Zap, ChefHat, Search
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -37,6 +37,17 @@ interface Sticker {
   rotation: number
 }
 
+interface Recipe {
+  id: string
+  title: string
+  description: string
+  image_url: string
+  category: string
+  prep_time: number
+  cook_time: number
+  servings: number
+}
+
 interface FormData {
   media: File | null
   mediaType: 'image' | 'video' | null
@@ -52,6 +63,7 @@ export default function CreateStoryPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   
   const [formData, setFormData] = useState<FormData>({
     media: null,
@@ -64,14 +76,19 @@ export default function CreateStoryPage() {
   
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [currentTool, setCurrentTool] = useState<'media' | 'text' | 'draw' | 'stickers' | 'effects'>('media')
+  const [currentTool, setCurrentTool] = useState<'media' | 'text' | 'draw' | 'stickers' | 'effects' | 'recipes'>('media')
   const [textElements, setTextElements] = useState<TextElement[]>([])
   const [stickers, setStickers] = useState<Sticker[]>([])
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
   const [newText, setNewText] = useState('')
   const [isDrawing, setIsDrawing] = useState(false)
   const [brushSize, setBrushSize] = useState(5)
   const [brushColor, setBrushColor] = useState('#FFFFFF')
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [containerRect, setContainerRect] = useState<DOMRect | null>(null)
 
   const backgroundGradients = [
     'linear-gradient(45deg, #FF6B6B, #4ECDC4)',
@@ -108,11 +125,62 @@ export default function CreateStoryPage() {
     'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Palatino'
   ]
 
+  useEffect(() => {
+    if (containerRef.current) {
+      setContainerRect(containerRef.current.getBoundingClientRect())
+    }
+
+    const handleResize = () => {
+      if (containerRef.current) {
+        setContainerRect(containerRef.current.getBoundingClientRect())
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (user) {
+      fetchUserRecipes()
+    }
+  }, [user])
+
   // Redirect if not logged in
   if (!loading && !user) {
     router.push('/auth/login')
     return null
   }
+
+  const fetchUserRecipes = async () => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase
+        .from('recipes')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (error) throw error
+      setRecipes(data || [])
+    } catch (error) {
+      console.error('Error fetching recipes:', error)
+    }
+  }
+
+  const getMousePosition = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    if (!containerRect) return { x: 0, y: 0 }
+    
+    const x = ((e.clientX - containerRect.left) / containerRect.width) * 100
+    const y = ((e.clientY - containerRect.top) / containerRect.height) * 100
+    
+    return { 
+      x: Math.max(0, Math.min(100, x)), 
+      y: Math.max(0, Math.min(100, y)) 
+    }
+  }, [containerRect])
 
   const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -162,8 +230,8 @@ export default function CreateStoryPage() {
     const newElement: TextElement = {
       id: Date.now().toString(),
       text: newText,
-      x: 50,
-      y: 50,
+      x: 25,
+      y: 30,
       fontSize: 24,
       color: '#FFFFFF',
       fontFamily: 'Arial',
@@ -189,6 +257,68 @@ export default function CreateStoryPage() {
     setSelectedElementId(null)
   }
 
+  const handleElementMouseDown = (e: React.MouseEvent, elementId: string, type: 'text' | 'sticker') => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const pos = getMousePosition(e)
+    let element
+
+    if (type === 'text') {
+      element = textElements.find(el => el.id === elementId)
+      setSelectedElementId(elementId)
+    } else {
+      element = stickers.find(el => el.id === elementId)
+    }
+
+    if (element) {
+      setIsDragging(true)
+      setDragOffset({
+        x: pos.x - element.x,
+        y: pos.y - element.y
+      })
+    }
+  }
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !selectedElementId) return
+
+    const pos = getMousePosition(e)
+    const newX = pos.x - dragOffset.x
+    const newY = pos.y - dragOffset.y
+
+    // Update text element position
+    const textElement = textElements.find(el => el.id === selectedElementId)
+    if (textElement) {
+      updateTextElement(selectedElementId, {
+        x: Math.max(0, Math.min(90, newX)),
+        y: Math.max(0, Math.min(90, newY))
+      })
+      return
+    }
+
+    // Update sticker position
+    const sticker = stickers.find(el => el.id === selectedElementId)
+    if (sticker) {
+      setStickers(prev =>
+        prev.map(el =>
+          el.id === selectedElementId
+            ? {
+                ...el,
+                x: Math.max(0, Math.min(containerRect ? containerRect.width - 50 : 250, (newX / 100) * (containerRect?.width || 300))),
+                y: Math.max(0, Math.min(containerRect ? containerRect.height - 50 : 450, (newY / 100) * (containerRect?.height || 533)))
+              }
+            : el
+        )
+      )
+    }
+  }, [isDragging, selectedElementId, dragOffset, getMousePosition, textElements, stickers, containerRect])
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false)
+    setDragOffset({ x: 0, y: 0 })
+  }, [])
+
   const addSticker = (sticker: { type: string, content: string }) => {
     const newSticker: Sticker = {
       id: Date.now().toString(),
@@ -207,6 +337,17 @@ export default function CreateStoryPage() {
     setStickers(prev => prev.filter(s => s.id !== id))
   }
 
+  const getCanvasPosition = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas || !containerRect) return { x: 0, y: 0 }
+    
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((e.clientY - rect.top) / rect.height) * canvas.height
+    }
+  }
+
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (currentTool !== 'draw') return
     setIsDrawing(true)
@@ -214,15 +355,13 @@ export default function CreateStoryPage() {
     const canvas = canvasRef.current
     if (!canvas) return
     
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const pos = getCanvasPosition(e)
     
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     
     ctx.beginPath()
-    ctx.moveTo(x, y)
+    ctx.moveTo(pos.x, pos.y)
   }
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -231,9 +370,7 @@ export default function CreateStoryPage() {
     const canvas = canvasRef.current
     if (!canvas) return
     
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const pos = getCanvasPosition(e)
     
     const ctx = canvas.getContext('2d')
     if (!ctx) return
@@ -241,10 +378,10 @@ export default function CreateStoryPage() {
     ctx.lineWidth = brushSize
     ctx.lineCap = 'round'
     ctx.strokeStyle = brushColor
-    ctx.lineTo(x, y)
+    ctx.lineTo(pos.x, pos.y)
     ctx.stroke()
     ctx.beginPath()
-    ctx.moveTo(x, y)
+    ctx.moveTo(pos.x, pos.y)
   }
 
   const stopDrawing = () => {
@@ -259,6 +396,17 @@ export default function CreateStoryPage() {
     if (!ctx) return
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+  }
+
+  const selectRecipe = (recipe: Recipe) => {
+    setSelectedRecipe(recipe)
+    setFormData(prev => ({ ...prev, recipeId: recipe.id }))
+    toast.success(`Recipe "${recipe.title}" added to story!`)
+  }
+
+  const removeRecipe = () => {
+    setSelectedRecipe(null)
+    setFormData(prev => ({ ...prev, recipeId: null }))
   }
 
   const uploadMedia = async (): Promise<string | null> => {
@@ -296,7 +444,7 @@ export default function CreateStoryPage() {
       return
     }
 
-    if (!formData.media && !formData.textOverlay.trim() && textElements.length === 0) {
+    if (!formData.media && !formData.textOverlay.trim() && textElements.length === 0 && !selectedRecipe) {
       toast.error('Please add some content to your story')
       return
     }
@@ -378,14 +526,20 @@ export default function CreateStoryPage() {
           <button
             onClick={handleSubmit}
             disabled={isLoading}
-            className="bg-blue-600 px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="bg-blue-600 px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {isLoading ? '...' : 'Share'}
+            {isLoading ? 'Sharing...' : 'Share'}
           </button>
         </div>
 
         {/* Story Canvas */}
-        <div className="aspect-[9/16] relative overflow-hidden">
+        <div 
+          ref={containerRef}
+          className="aspect-[9/16] relative overflow-hidden cursor-pointer select-none"
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
           {/* Background */}
           <div 
             className="absolute inset-0"
@@ -423,19 +577,54 @@ export default function CreateStoryPage() {
             width={300}
             height={533}
             className="absolute inset-0 w-full h-full"
-            style={{ touchAction: 'none' }}
+            style={{ touchAction: 'none', pointerEvents: currentTool === 'draw' ? 'auto' : 'none' }}
             onMouseDown={startDrawing}
             onMouseMove={draw}
             onMouseUp={stopDrawing}
             onMouseLeave={stopDrawing}
           />
 
+          {/* Recipe Card */}
+          {selectedRecipe && (
+            <div className="absolute top-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200">
+                  {selectedRecipe.image_url ? (
+                    <img 
+                      src={selectedRecipe.image_url} 
+                      alt={selectedRecipe.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ChefHat className="w-6 h-6 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm text-gray-900 truncate">
+                    {selectedRecipe.title}
+                  </h3>
+                  <p className="text-xs text-gray-600 truncate">
+                    {selectedRecipe.category} • {selectedRecipe.prep_time + selectedRecipe.cook_time} min
+                  </p>
+                </div>
+                <button
+                  onClick={removeRecipe}
+                  className="p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Text Elements */}
           {textElements.map(element => (
             <div
               key={element.id}
-              className={`absolute cursor-move select-none ${
-                selectedElementId === element.id ? 'ring-2 ring-blue-400' : ''
+              className={`absolute cursor-move select-none transition-all ${
+                selectedElementId === element.id ? 'ring-2 ring-blue-400 ring-opacity-50' : ''
               }`}
               style={{
                 left: `${element.x}%`,
@@ -447,9 +636,14 @@ export default function CreateStoryPage() {
                 fontStyle: element.isItalic ? 'italic' : 'normal',
                 textAlign: element.alignment,
                 transform: `rotate(${element.rotation}deg)`,
-                textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+                textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+                pointerEvents: 'auto'
               }}
-              onClick={() => setSelectedElementId(element.id)}
+              onMouseDown={(e) => handleElementMouseDown(e, element.id, 'text')}
+              onClick={(e) => {
+                e.stopPropagation()
+                setSelectedElementId(element.id)
+              }}
             >
               {element.text}
             </div>
@@ -464,9 +658,11 @@ export default function CreateStoryPage() {
                 left: `${sticker.x}px`,
                 top: `${sticker.y}px`,
                 fontSize: `${sticker.size}px`,
-                transform: `rotate(${sticker.rotation}deg)`
+                transform: `rotate(${sticker.rotation}deg)`,
+                pointerEvents: 'auto'
               }}
-              onClick={() => deleteSticker(sticker.id)}
+              onMouseDown={(e) => handleElementMouseDown(e, sticker.id, 'sticker')}
+              onDoubleClick={() => deleteSticker(sticker.id)}
             >
               {sticker.content}
             </div>
@@ -486,31 +682,32 @@ export default function CreateStoryPage() {
         {/* Bottom Tools */}
         <div className="p-4 space-y-4">
           {/* Tool Selector */}
-          <div className="flex items-center justify-center space-x-2 overflow-x-auto pb-2">
+          <div className="flex items-center justify-center space-x-1 overflow-x-auto pb-2">
             {[
               { id: 'media', icon: Camera, label: 'Media' },
               { id: 'text', icon: Type, label: 'Text' },
               { id: 'draw', icon: Circle, label: 'Draw' },
               { id: 'stickers', icon: Smile, label: 'Stickers' },
+              { id: 'recipes', icon: ChefHat, label: 'Recipes' },
               { id: 'effects', icon: Sparkles, label: 'Effects' }
             ].map(tool => (
               <button
                 key={tool.id}
                 onClick={() => setCurrentTool(tool.id as any)}
-                className={`flex flex-col items-center space-y-1 px-4 py-2 rounded-xl transition-all ${
+                className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-xl transition-all text-xs ${
                   currentTool === tool.id 
                     ? 'bg-blue-600 text-white' 
                     : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
-                <tool.icon className="w-5 h-5" />
-                <span className="text-xs">{tool.label}</span>
+                <tool.icon className="w-4 h-4" />
+                <span>{tool.label}</span>
               </button>
             ))}
           </div>
 
           {/* Tool Options */}
-          <div className="bg-gray-900 rounded-xl p-4">
+          <div className="bg-gray-900 rounded-xl p-4 max-h-60 overflow-y-auto">
             {/* Media Tools */}
             {currentTool === 'media' && (
               <div className="space-y-4">
@@ -554,7 +751,7 @@ export default function CreateStoryPage() {
                 {selectedTextElement && (
                   <div className="space-y-3 border-t border-gray-700 pt-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-white text-sm">Selected: "{selectedTextElement.text}"</span>
+                      <span className="text-white text-sm">Selected: "{selectedTextElement.text.substring(0, 20)}..."</span>
                       <button
                         onClick={() => deleteTextElement(selectedTextElement.id)}
                         className="text-red-400 hover:text-red-300"
@@ -673,6 +870,51 @@ export default function CreateStoryPage() {
                     </button>
                   ))}
                 </div>
+                <p className="text-xs text-gray-400 text-center">
+                  Tap to add • Double-tap to remove
+                </p>
+              </div>
+            )}
+
+            {/* Recipes */}
+            {currentTool === 'recipes' && (
+              <div className="space-y-4">
+                <div className="text-white text-sm mb-2">Add Recipe to Story:</div>
+                {recipes.length > 0 ? (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {recipes.map(recipe => (
+                      <button
+                        key={recipe.id}
+                        onClick={() => selectRecipe(recipe)}
+                        className={`w-full p-3 rounded-lg text-left transition-colors ${
+                          selectedRecipe?.id === recipe.id 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 rounded bg-gray-700 flex items-center justify-center overflow-hidden">
+                            {recipe.image_url ? (
+                              <img src={recipe.image_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <ChefHat className="w-4 h-4 text-gray-400" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{recipe.title}</p>
+                            <p className="text-xs opacity-70">{recipe.category}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-400 py-8">
+                    <ChefHat className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No recipes found</p>
+                    <p className="text-xs">Create a recipe first!</p>
+                  </div>
+                )}
               </div>
             )}
 
