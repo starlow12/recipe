@@ -155,7 +155,17 @@ export default function SignUpPage() {
       }
 
       if (authData.user) {
-        console.log('User created, creating profile') // Debug log
+        // Check if email confirmation is needed
+        if (!authData.session) {
+          // User created but needs email confirmation
+          console.log('User created, waiting for email confirmation')
+          toast.success('Account created! Please check your email and click the verification link to complete registration.')
+          router.push('/auth/login?message=check-email')
+          return
+        }
+
+        // User is automatically signed in (email confirmation disabled)
+        console.log('User created and signed in automatically, creating profile')
         
         // Create profile record
         const { error: profileError } = await supabase
@@ -167,7 +177,7 @@ export default function SignUpPage() {
             full_name: formData.fullName.trim()
           })
 
-        console.log('Profile creation result:', profileError) // Debug log
+        console.log('Profile creation result:', profileError)
 
         if (profileError) {
           console.error('Profile creation error:', profileError)
@@ -175,9 +185,9 @@ export default function SignUpPage() {
           return
         }
 
-        console.log('Success! Redirecting...') // Debug log
-        toast.success('Account created successfully! Please check your email to verify your account.')
-        router.push('/auth/login?message=check-email')
+        console.log('Success! User can now use the app')
+        toast.success('Welcome to RecipeGram! Your account is ready to use.')
+        router.push('/')
       }
     } catch (error: any) {
       console.error('Sign up error:', error)
