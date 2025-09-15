@@ -53,7 +53,7 @@ export const StoriesSection = () => {
         .select('following_id')
         .eq('follower_id', user.id)
 
-      const followingIds = followingData?.map(f => f.following_id) || []
+      const followingIds = followingData?.map((f: any) => f.following_id) || []
       const userIds = [user.id, ...followingIds]
 
       // Get active stories (not expired)
