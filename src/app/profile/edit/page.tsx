@@ -53,15 +53,25 @@ export default function EditProfilePage() {
         .eq('id', user.id)
         .single()
 
-      if (error) throw error
-
-      setProfileData({
-        username: data.username || '',
-        full_name: data.full_name || '',
-        email: data.email || user.email || '',
-        bio: data.bio || '',
-        avatar_url: data.avatar_url
-      })
+      if (error) {
+        console.error('Fetch profile error:', error)
+        // If profile doesn't exist, create basic one from user data
+        setProfileData({
+          username: user.email?.split('@')[0] || '',
+          full_name: user.user_metadata?.full_name || '',
+          email: user.email || '',
+          bio: '',
+          avatar_url: null
+        })
+      } else {
+        setProfileData({
+          username: data.username || user.email?.split('@')[0] || '',
+          full_name: data.full_name || user.user_metadata?.full_name || '',
+          email: data.email || user.email || '',
+          bio: data.bio || '',
+          avatar_url: data.avatar_url
+        })
+      }
     } catch (error) {
       console.error('Error fetching profile:', error)
       toast.error('Failed to load profile')
@@ -136,13 +146,26 @@ export default function EditProfilePage() {
     setUploadingImage(true)
 
     try {
+      // Delete old avatar if exists
+      if (profileData.avatar_url) {
+        const oldFileName = profileData.avatar_url.split('/').pop()
+        if (oldFileName && oldFileName.includes(user.id)) {
+          await supabase.storage
+            .from('avatars')
+            .remove([`avatars/${oldFileName}`])
+        }
+      }
+
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
       const filePath = `avatars/${fileName}`
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
 
       if (uploadError) {
         console.error('Upload error:', uploadError)
@@ -157,8 +180,24 @@ export default function EditProfilePage() {
       const publicUrl = urlData.publicUrl
       console.log('New avatar URL:', publicUrl)
 
+      // Update both local state and database immediately
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          avatar_url: publicUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (updateError) {
+        console.error('Database update error:', updateError)
+        toast.error('Failed to save profile picture')
+        return
+      }
+
+      // Update local state
       setProfileData(prev => ({ ...prev, avatar_url: publicUrl }))
-      toast.success('Profile picture updated!')
+      toast.success('Profile picture updated successfully!')
 
     } catch (error) {
       console.error('Image upload error:', error)
