@@ -74,7 +74,7 @@ export const StoriesSection = () => {
       if (error) throw error
 
       // Group stories by user
-      const groupedStories = (storiesData || []).reduce((acc, story) => {
+     const groupedStories = (storiesData || []).reduce((acc: Record<string, StoryGroup>, story: any) => {
         const userId = story.user_id
         if (!acc[userId]) {
           acc[userId] = {
