@@ -170,7 +170,7 @@ export default function CreateStoryPage() {
     }
   }
 
-  const getMousePosition = useCallback((e: React.MouseEvent<HTMLElement>) => {
+  const getMousePosition = useCallback((e: React.MouseEvent<any>) => {
     if (!containerRect) return { x: 0, y: 0 }
     
     const x = ((e.clientX - containerRect.left) / containerRect.width) * 100
@@ -280,7 +280,7 @@ export default function CreateStoryPage() {
     }
   }
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent<any>) => {
     if (!isDragging || !selectedElementId) return
 
     const pos = getMousePosition(e)
