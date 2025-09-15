@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Navigation } from '../../components/Navigation'
-import { supabase } from '../../lib/supabase'
+import { Navigation } from '../../../components/Navigation'
+import { supabase } from '../../../lib/supabase'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, ChefHat } from 'lucide-react'
