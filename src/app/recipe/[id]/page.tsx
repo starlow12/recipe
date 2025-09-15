@@ -108,7 +108,19 @@ export default function RecipeViewPage() {
         return
       }
 
-      setRecipe(data as RecipeWithProfile)
+      // Count actual likes from likes table
+      const { count: actualLikesCount } = await supabase
+        .from('likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipe_id', recipeId)
+
+      // Update recipe with actual count
+      const recipeWithActualCount = {
+        ...data,
+        likes_count: actualLikesCount || 0
+      }
+
+      setRecipe(recipeWithActualCount as RecipeWithProfile)
     } catch (error) {
       console.error('Error fetching recipe:', error)
       toast.error('Failed to load recipe')
