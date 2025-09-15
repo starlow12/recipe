@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { 
   ArrowLeft, ArrowRight, Play, Pause, Volume2, VolumeX, 
-  Heart, Send, MoreHorizontal, X, Share2, Download
+  Heart, Send, MoreHorizontal, X, Share2, ChefHat
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -16,15 +16,19 @@ interface Story {
   media_url: string
   media_type: 'image' | 'video'
   text_overlay: string | null
-  background_style: string | null
-  text_elements: string | null
-  stickers: string | null
+  recipe_id: string | null
   created_at: string
   expires_at: string
   profiles: {
     username: string
     full_name: string | null
     avatar_url: string | null
+  }
+  recipes?: {
+    id: string
+    title: string
+    image_url: string
+    category: string
   }
 }
 
@@ -38,18 +42,19 @@ interface TextElement {
   fontFamily: string
   isBold: boolean
   isItalic: boolean
-  alignment: 'left' | 'center' | 'right'
-  rotation: number
 }
 
 interface Sticker {
   id: string
-  type: 'emoji' | 'icon'
   content: string
   x: number
   y: number
   size: number
-  rotation: number
+}
+
+interface StoryElements {
+  elements?: TextElement[]
+  stickers?: Sticker[]
 }
 
 export default function StoryViewerPage() {
@@ -57,7 +62,8 @@ export default function StoryViewerPage() {
   const { user } = useAuth()
   const router = useRouter()
   const videoRef = useRef<HTMLVideoElement>(null)
-  const progressRef = useRef<HTMLDivElement>(null)
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const storyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   const [stories, setStories] = useState<Story[]>([])
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0)
@@ -68,9 +74,9 @@ export default function StoryViewerPage() {
   const [showReplyInput, setShowReplyInput] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [isLiked, setIsLiked] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
 
   const STORY_DURATION = 5000 // 5 seconds for images
-  let progressInterval: NodeJS.Timeout | null = null
 
   useEffect(() => {
     if (userId) {
@@ -79,14 +85,17 @@ export default function StoryViewerPage() {
   }, [userId])
 
   useEffect(() => {
-    if (stories.length > 0 && isPlaying) {
-      startProgress()
+    if (stories.length > 0 && isPlaying && !isPaused) {
+      startStoryTimer()
     } else {
-      stopProgress()
+      stopStoryTimer()
     }
 
-    return () => stopProgress()
-  }, [currentStoryIndex, isPlaying, stories])
+    return () => {
+      stopStoryTimer()
+      stopProgress()
+    }
+  }, [currentStoryIndex, isPlaying, isPaused, stories])
 
   const fetchStories = async () => {
     try {
@@ -98,6 +107,12 @@ export default function StoryViewerPage() {
             username,
             full_name,
             avatar_url
+          ),
+          recipes (
+            id,
+            title,
+            image_url,
+            category
           )
         `)
         .eq('user_id', userId)
@@ -128,26 +143,47 @@ export default function StoryViewerPage() {
     const currentStory = stories[currentStoryIndex]
     if (!currentStory) return
 
-    const duration = currentStory.media_type === 'video' ? 15000 : STORY_DURATION
-    const increment = 100 / (duration / 50) // Update every 50ms
+    const duration = currentStory.media_type === 'video' ? 10000 : STORY_DURATION
+    const increment = 100 / (duration / 100) // Update every 100ms
     
-    progressInterval = setInterval(() => {
+    progressIntervalRef.current = setInterval(() => {
       setProgress(prev => {
         const newProgress = prev + increment
         if (newProgress >= 100) {
-          nextStory()
-          return 0
+          return 100
         }
         return newProgress
       })
-    }, 50)
+    }, 100)
   }
 
   const stopProgress = () => {
-    if (progressInterval) {
-      clearInterval(progressInterval)
-      progressInterval = null
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
     }
+  }
+
+  const startStoryTimer = () => {
+    stopStoryTimer()
+    startProgress()
+    
+    const currentStory = stories[currentStoryIndex]
+    if (!currentStory) return
+
+    const duration = currentStory.media_type === 'video' ? 10000 : STORY_DURATION
+    
+    storyTimeoutRef.current = setTimeout(() => {
+      nextStory()
+    }, duration)
+  }
+
+  const stopStoryTimer = () => {
+    if (storyTimeoutRef.current) {
+      clearTimeout(storyTimeoutRef.current)
+      storyTimeoutRef.current = null
+    }
+    stopProgress()
   }
 
   const nextStory = () => {
@@ -167,13 +203,13 @@ export default function StoryViewerPage() {
   }
 
   const togglePlayPause = () => {
-    setIsPlaying(!isPlaying)
+    setIsPaused(!isPaused)
     
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause()
-      } else {
+      if (isPaused) {
         videoRef.current.play()
+      } else {
+        videoRef.current.pause()
       }
     }
   }
@@ -185,11 +221,14 @@ export default function StoryViewerPage() {
     }
   }
 
+  const handleStoryPress = () => {
+    setIsPaused(!isPaused)
+  }
+
   const handleReply = async () => {
     if (!user || !replyText.trim()) return
 
     try {
-      // In a real app, you'd send this to a messages table
       toast.success('Reply sent!')
       setReplyText('')
       setShowReplyInput(false)
@@ -202,7 +241,6 @@ export default function StoryViewerPage() {
     if (!user) return
 
     try {
-      // Toggle like logic here
       setIsLiked(!isLiked)
       toast.success(isLiked ? 'Unliked' : 'Liked!')
     } catch (error) {
@@ -251,15 +289,12 @@ export default function StoryViewerPage() {
   }
 
   const currentStory = stories[currentStoryIndex]
-  let textElements: TextElement[] = []
-  let stickers: Sticker[] = []
+  let storyElements: StoryElements = {}
 
+  // Parse story elements from text_overlay
   try {
-    if (currentStory.text_elements) {
-      textElements = JSON.parse(currentStory.text_elements)
-    }
-    if (currentStory.stickers) {
-      stickers = JSON.parse(currentStory.stickers)
+    if (currentStory.text_overlay) {
+      storyElements = JSON.parse(currentStory.text_overlay)
     }
   } catch (error) {
     console.error('Error parsing story elements:', error)
@@ -327,7 +362,7 @@ export default function StoryViewerPage() {
                     onClick={togglePlayPause}
                     className="p-2 hover:bg-white/20 rounded-full transition-colors"
                   >
-                    {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                    {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
                   </button>
                   <button
                     onClick={toggleMute}
@@ -353,17 +388,12 @@ export default function StoryViewerPage() {
         </div>
 
         {/* Story Content */}
-        <div className="relative h-full">
-          {/* Background */}
-          {currentStory.background_style && !currentStory.media_url.startsWith('http') && (
-            <div 
-              className="absolute inset-0"
-              style={{ background: currentStory.background_style }}
-            />
-          )}
-
-          {/* Media */}
-          {currentStory.media_url.startsWith('http') && (
+        <div 
+          className="relative h-full"
+          onClick={handleStoryPress}
+        >
+          {/* Background/Media */}
+          {currentStory.media_url.startsWith('http') ? (
             <div className="absolute inset-0">
               {currentStory.media_type === 'image' ? (
                 <img 
@@ -376,33 +406,68 @@ export default function StoryViewerPage() {
                   ref={videoRef}
                   src={currentStory.media_url}
                   className="w-full h-full object-cover"
-                  autoPlay={isPlaying}
+                  autoPlay={!isPaused}
                   muted={isMuted}
                   playsInline
+                  loop
                   onLoadedMetadata={() => {
-                    if (videoRef.current && isPlaying) {
+                    if (videoRef.current && !isPaused) {
                       videoRef.current.play()
                     }
                   }}
                 />
               )}
             </div>
+          ) : (
+            <div 
+              className="absolute inset-0"
+              style={{ backgroundColor: '#FF6B35' }}
+            />
           )}
 
-          {/* Text Overlay */}
-          {currentStory.text_overlay && (
-            <div className="absolute inset-0 flex items-center justify-center px-8">
-              <p className="text-white text-2xl font-bold text-center shadow-lg">
-                {currentStory.text_overlay}
-              </p>
+          {/* Recipe Card */}
+          {currentStory.recipes && (
+            <div className="absolute top-20 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg z-20">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
+                  {currentStory.recipes.image_url ? (
+                    <img 
+                      src={currentStory.recipes.image_url} 
+                      alt={currentStory.recipes.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ChefHat className="w-6 h-6 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm text-gray-900 truncate">
+                    {currentStory.recipes.title}
+                  </h3>
+                  <p className="text-xs text-gray-600 truncate">
+                    {currentStory.recipes.category}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    router.push(`/recipe/${currentStory.recipes?.id}`)
+                  }}
+                  className="text-blue-600 text-sm font-medium hover:text-blue-700 px-3 py-1 rounded-full bg-blue-50"
+                >
+                  View
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Dynamic Text Elements */}
-          {textElements.map(element => (
+          {/* Text Elements */}
+          {storyElements.elements?.map(element => (
             <div
               key={element.id}
-              className="absolute select-none pointer-events-none"
+              className="absolute select-none pointer-events-none z-20"
               style={{
                 left: `${element.x}%`,
                 top: `${element.y}%`,
@@ -411,9 +476,11 @@ export default function StoryViewerPage() {
                 fontFamily: element.fontFamily,
                 fontWeight: element.isBold ? 'bold' : 'normal',
                 fontStyle: element.isItalic ? 'italic' : 'normal',
-                textAlign: element.alignment,
-                transform: `rotate(${element.rotation}deg)`,
-                textShadow: '2px 2px 4px rgba(0,0,0,0.7)'
+                textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
+                transform: 'translate(-50%, -50%)',
+                maxWidth: '80%',
+                wordWrap: 'break-word',
+                textAlign: 'center'
               }}
             >
               {element.text}
@@ -421,15 +488,15 @@ export default function StoryViewerPage() {
           ))}
 
           {/* Stickers */}
-          {stickers.map(sticker => (
+          {storyElements.stickers?.map(sticker => (
             <div
               key={sticker.id}
-              className="absolute select-none pointer-events-none"
+              className="absolute select-none pointer-events-none z-20"
               style={{
-                left: `${sticker.x}px`,
-                top: `${sticker.y}px`,
+                left: `${sticker.x}%`,
+                top: `${sticker.y}%`,
                 fontSize: `${sticker.size}px`,
-                transform: `rotate(${sticker.rotation}deg)`
+                transform: 'translate(-50%, -50%)'
               }}
             >
               {sticker.content}
@@ -438,23 +505,32 @@ export default function StoryViewerPage() {
 
           {/* Navigation Areas */}
           <button
-            onClick={prevStory}
+            onClick={(e) => {
+              e.stopPropagation()
+              prevStory()
+            }}
             className="absolute left-0 top-0 w-1/3 h-full z-10 focus:outline-none"
             style={{ background: 'transparent' }}
             disabled={currentStoryIndex === 0}
           />
           
           <button
-            onClick={nextStory}
+            onClick={(e) => {
+              e.stopPropagation()
+              nextStory()
+            }}
             className="absolute right-0 top-0 w-1/3 h-full z-10 focus:outline-none"
             style={{ background: 'transparent' }}
           />
 
-          <button
-            onClick={togglePlayPause}
-            className="absolute left-1/3 top-0 w-1/3 h-full z-10 focus:outline-none"
-            style={{ background: 'transparent' }}
-          />
+          {/* Pause indicator */}
+          {isPaused && (
+            <div className="absolute inset-0 flex items-center justify-center z-25 bg-black/20">
+              <div className="bg-black/60 rounded-full p-4">
+                <Play className="w-12 h-12 text-white" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bottom Actions */}
@@ -462,7 +538,10 @@ export default function StoryViewerPage() {
           <div className="absolute bottom-6 left-0 right-0 z-30 px-4">
             <div className="flex items-center space-x-3">
               <button
-                onClick={toggleLike}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleLike()
+                }}
                 className={`p-3 rounded-full ${isLiked ? 'bg-red-500' : 'bg-white/20'} transition-colors`}
               >
                 <Heart className={`w-6 h-6 ${isLiked ? 'text-white fill-current' : 'text-white'}`} />
@@ -477,15 +556,22 @@ export default function StoryViewerPage() {
                       placeholder="Reply to story..."
                       className="flex-1 bg-transparent text-white placeholder-white/70 outline-none"
                       maxLength={100}
+                      onClick={(e) => e.stopPropagation()}
                     />
                     <button
-                      onClick={handleReply}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleReply()
+                      }}
                       className="text-white hover:text-blue-300"
                     >
                       <Send className="w-5 h-5" />
                     </button>
                     <button
-                      onClick={() => setShowReplyInput(false)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowReplyInput(false)
+                      }}
                       className="text-white hover:text-red-300"
                     >
                       <X className="w-5 h-5" />
@@ -493,7 +579,10 @@ export default function StoryViewerPage() {
                   </div>
                 ) : (
                   <button
-                    onClick={() => setShowReplyInput(true)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowReplyInput(true)
+                    }}
                     className="w-full bg-white/20 text-white rounded-full py-3 px-6 text-left"
                   >
                     Send message to {currentStory.profiles.username}...
