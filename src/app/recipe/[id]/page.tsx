@@ -17,7 +17,9 @@ import {
   UserPlus,
   UserMinus,
   ArrowLeft,
-  Share2
+  Share2,
+  MessageCircle,
+  Send
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -37,12 +39,27 @@ interface UserInteractions {
   isFollowing: boolean
 }
 
+interface Comment {
+  id: string
+  recipe_id: string
+  user_id: string
+  content: string
+  created_at: string
+  profiles: {
+    username: string
+    full_name: string | null
+    avatar_url: string | null
+  }
+}
+
 export default function RecipeViewPage() {
   const { user, loading } = useAuth()
   const params = useParams()
   const recipeId = params.id as string
 
   const [recipe, setRecipe] = useState<RecipeWithProfile | null>(null)
+  const [comments, setComments] = useState<Comment[]>([])
+  const [newComment, setNewComment] = useState('')
   const [interactions, setInteractions] = useState<UserInteractions>({
     isLiked: false,
     isSaved: false,
@@ -58,6 +75,7 @@ export default function RecipeViewPage() {
   useEffect(() => {
     if (recipeId) {
       fetchRecipe()
+      fetchComments()
     }
   }, [recipeId])
 
@@ -66,6 +84,79 @@ export default function RecipeViewPage() {
       fetchUserInteractions()
     }
   }, [user, recipe])
+
+  const fetchComments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .select(`
+          *,
+          profiles (
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('recipe_id', recipeId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setComments(data || [])
+    } catch (error) {
+      console.error('Error fetching comments:', error)
+    }
+  }
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!user || !recipe) {
+      toast.error('Please sign in to comment')
+      return
+    }
+
+    if (!newComment.trim()) {
+      toast.error('Please enter a comment')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          recipe_id: recipe.id,
+          user_id: user.id,
+          content: newComment.trim()
+        })
+        .select(`
+          *,
+          profiles (
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .single()
+
+      if (error) throw error
+
+      // Update comments count
+      await supabase
+        .from('recipes')
+        .update({ comments_count: (recipe.comments_count || 0) + 1 })
+        .eq('id', recipe.id)
+
+      // Add comment to list
+      setComments(prev => [data, ...prev])
+      setRecipe(prev => prev ? { ...prev, comments_count: (prev.comments_count || 0) + 1 } : null)
+      setNewComment('')
+      toast.success('Comment added!')
+
+    } catch (error) {
+      console.error('Comment error:', error)
+      toast.error('Failed to add comment')
+    }
+  }
 
   const fetchRecipe = async () => {
     try {
@@ -333,6 +424,116 @@ export default function RecipeViewPage() {
                 alt={recipe.title}
                 className="w-full h-full object-cover"
               />
+              <div className="text-center">
+                <MessageCircle className="w-6 h-6 text-orange-500 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">Comments</p>
+                <p className="text-lg font-semibold">{recipe.comments_count || 0}</p>
+              </div>
+            </div>
+
+            {/* Comments Section */}
+            <div className="border-t pt-8 mt-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Comments ({recipe.comments_count || 0})
+              </h2>
+
+              {/* Add Comment Form */}
+              {user ? (
+                <form onSubmit={handleAddComment} className="mb-8">
+                  <div className="flex space-x-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {user.user_metadata?.avatar_url ? (
+                        <img 
+                          src={user.user_metadata.avatar_url} 
+                          alt="You"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-5 h-5 text-white" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Share your thoughts about this recipe..."
+                        rows={3}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                      />
+                      <div className="flex justify-end mt-2">
+                        <button
+                          type="submit"
+                          disabled={!newComment.trim()}
+                          className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center space-x-2"
+                        >
+                          <Send className="w-4 h-4" />
+                          <span>Comment</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-lg mb-8">
+                  <p className="text-gray-600 mb-4">Sign in to leave a comment</p>
+                  <Link 
+                    href="/auth/login"
+                    className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-red-600 transition-all"
+                  >
+                    Sign In
+                  </Link>
+                </div>
+              )}
+
+              {/* Comments List */}
+              <div className="space-y-6">
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <div key={comment.id} className="flex space-x-4">
+                      <Link href={`/user/${comment.profiles.username}`}>
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer">
+                          {comment.profiles.avatar_url ? (
+                            <img 
+                              src={comment.profiles.avatar_url} 
+                              alt={comment.profiles.username}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User className="w-5 h-5 text-white" />
+                          )}
+                        </div>
+                      </Link>
+                      <div className="flex-1">
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <Link href={`/user/${comment.profiles.username}`}>
+                              <h4 className="font-semibold text-gray-900 hover:text-orange-600 transition-colors cursor-pointer">
+                                {comment.profiles.full_name || `@${comment.profiles.username}`}
+                              </h4>
+                            </Link>
+                            <span className="text-sm text-gray-500">
+                              {new Date(comment.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-gray-700 leading-relaxed">
+                            {comment.content}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No comments yet
+                    </h3>
+                    <p className="text-gray-500">
+                      Be the first to share your thoughts about this recipe!
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
