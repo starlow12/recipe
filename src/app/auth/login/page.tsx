@@ -36,6 +36,8 @@ export default function LoginPage() {
       toast.success('Please check your email and click the verification link to complete your registration.')
     } else if (message === 'password-updated') {
       toast.success('Password updated successfully! You can now sign in with your new password.')
+    } else if (message === 'email-confirmed') {
+      toast.success('Email verified successfully! You can now sign in to your account.')
     }
   }, [searchParams])
 
