@@ -75,9 +75,9 @@ export default function FollowersPage() {
           .from('follows')
           .select('following_id')
           .eq('follower_id', user.id)
-          .in('following_id', followersData.map(f => f.id))
+          .in('following_id', followersData.map((f: UserProfile) => f.id))
 
-        const mutualIds = mutualFollows?.map(f => f.following_id) || []
+        const mutualIds = mutualFollows?.map((f: any) => f.following_id) || []
         
         followersData.forEach((follower: UserProfile) => {
           follower.isFollowing = mutualIds.includes(follower.id)
