@@ -247,7 +247,9 @@ export default function EditProfilePage() {
       }
 
       toast.success('Profile updated successfully!')
-      router.push('/profile')
+      
+      // Force page refresh instead of just navigation
+      window.location.href = '/profile'
 
     } catch (error) {
       console.error('Save error:', error)
