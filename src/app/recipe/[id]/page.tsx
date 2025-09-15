@@ -245,13 +245,6 @@ export default function RecipeViewPage() {
           .eq('user_id', user.id)
           .eq('recipe_id', recipe.id)
 
-        // Update likes count
-        await supabase
-          .from('recipes')
-          .update({ likes_count: Math.max(0, (recipe.likes_count || 0) - 1) })
-          .eq('id', recipe.id)
-
-        setRecipe(prev => prev ? { ...prev, likes_count: Math.max(0, (prev.likes_count || 0) - 1) } : null)
         setInteractions(prev => ({ ...prev, isLiked: false }))
         toast.success('Recipe unliked')
       } else {
@@ -260,16 +253,21 @@ export default function RecipeViewPage() {
           .from('likes')
           .insert({ user_id: user.id, recipe_id: recipe.id })
 
-        // Update likes count
-        await supabase
-          .from('recipes')
-          .update({ likes_count: (recipe.likes_count || 0) + 1 })
-          .eq('id', recipe.id)
-
-        setRecipe(prev => prev ? { ...prev, likes_count: (prev.likes_count || 0) + 1 } : null)
         setInteractions(prev => ({ ...prev, isLiked: true }))
         toast.success('Recipe liked!')
       }
+
+      // Refresh the recipe data to get the updated likes count from database
+      const { data: updatedRecipe, error } = await supabase
+        .from('recipes')
+        .select('likes_count')
+        .eq('id', recipe.id)
+        .single()
+
+      if (!error && updatedRecipe) {
+        setRecipe(prev => prev ? { ...prev, likes_count: updatedRecipe.likes_count || 0 } : null)
+      }
+
     } catch (error) {
       console.error('Like error:', error)
       toast.error('Something went wrong')
