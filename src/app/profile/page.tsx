@@ -9,7 +9,6 @@ import { User, Settings, Camera, Users, Heart, Clock, ChefHat } from 'lucide-rea
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
-
 interface Profile {
   id: string
   username: string
@@ -53,6 +52,7 @@ export default function ProfilePage() {
   const [likedRecipes, setLikedRecipes] = useState<Recipe[]>([])
   const [activeTab, setActiveTab] = useState<TabType>('recipes')
   const [isLoading, setIsLoading] = useState(true)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -199,6 +199,72 @@ export default function ProfilePage() {
     }
   }
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !user) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB')
+      return
+    }
+
+    setUploadingImage(true)
+
+    try {
+      // Create unique filename
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      const filePath = `avatars/${fileName}`
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        toast.error('Failed to upload image')
+        return
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      const publicUrl = urlData.publicUrl
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id)
+
+      if (updateError) {
+        console.error('Profile update error:', updateError)
+        toast.error('Failed to update profile')
+        return
+      }
+
+      // Update local state
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null)
+      toast.success('Profile picture updated successfully!')
+
+    } catch (error) {
+      console.error('Image upload error:', error)
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
   const getCurrentRecipes = (): Recipe[] => {
     switch (activeTab) {
       case 'recipes':
@@ -256,17 +322,39 @@ export default function ProfilePage() {
                 ) : (
                   <User className="w-16 h-16 text-white" />
                 )}
+                
+                {/* Upload overlay when uploading */}
+                {uploadingImage && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  </div>
+                )}
               </div>
-              <button className="absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-lg hover:scale-110 transition-transform">
+              
+              {/* Upload button */}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                id="avatar-upload"
+                disabled={uploadingImage}
+              />
+              <label
+                htmlFor="avatar-upload"
+                className={`absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-lg hover:scale-110 transition-transform cursor-pointer ${
+                  uploadingImage ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
                 <Camera className="w-5 h-5 text-gray-600" />
-              </button>
+              </label>
             </div>
 
             {/* Profile Info */}
             <div className="flex-1 text-center md:text-left">
               <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2 md:mb-0">
-                  @{profile?.username || 'user'}
+                  @{profile?.username || user?.email?.split('@')[0] || 'user'}
                 </h1>
                 <Link 
                   href="/profile/edit"
@@ -296,10 +384,6 @@ export default function ProfilePage() {
                 <div className="text-center cursor-pointer hover:text-orange-500 transition-colors">
                   <div className="text-2xl font-bold text-gray-900">{stats.followingCount}</div>
                   <div className="text-sm text-gray-600">Following</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{stats.likesCount}</div>
-                  <div className="text-sm text-gray-600">Total Likes</div>
                 </div>
               </div>
 
