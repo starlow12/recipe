@@ -91,7 +91,7 @@ export const StoriesSection = () => {
       }, {} as Record<string, StoryGroup>)
 
       // Convert to array and sort (user's stories first)
-      const sortedGroups = Object.values(groupedStories).sort((a, b) => {
+      const sortedGroups = Object.values(groupedStories).sort((a: StoryGroup, b: StoryGroup) => {
         if (a.user_id === user.id) return -1
         if (b.user_id === user.id) return 1
         return 0
