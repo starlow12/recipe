@@ -13,11 +13,64 @@ import toast from 'react-hot-toast'
 export default function Home() {
   const { user, loading } = useAuth()
   const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([])
   const [recipesLoading, setRecipesLoading] = useState(true)
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All')
+  const [maxTime, setMaxTime] = useState(120) // minutes
+  const [sortBy, setSortBy] = useState('newest') // newest, oldest, time, likes
+  const [showFilters, setShowFilters] = useState(false)
+
+  const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack', 'Appetizer', 'Beverage']
 
   useEffect(() => {
     fetchRecipes()
   }, [])
+
+  useEffect(() => {
+    filterAndSortRecipes()
+  }, [recipes, searchTerm, selectedCategory, maxTime, sortBy])
+
+  const filterAndSortRecipes = () => {
+    let filtered = [...recipes]
+
+    // Search by title and description
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(recipe =>
+        recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        recipe.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Filter by category
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(recipe => recipe.category === selectedCategory)
+    }
+
+    // Filter by cooking time
+    filtered = filtered.filter(recipe => (recipe.prep_time + recipe.cook_time) <= maxTime)
+
+    // Sort recipes
+    switch (sortBy) {
+      case 'oldest':
+        filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        break
+      case 'time':
+        filtered.sort((a, b) => (a.prep_time + a.cook_time) - (b.prep_time + b.cook_time))
+        break
+      case 'likes':
+        filtered.sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))
+        break
+      case 'newest':
+      default:
+        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        break
+    }
+
+    setFilteredRecipes(filtered)
+  }
 
   const fetchRecipes = async () => {
     try {
@@ -140,13 +193,133 @@ export default function Home() {
             </p>
           </div>
 
+          {/* Search and Filters */}
+          <div className="mb-6 space-y-4">
+            {/* Search Bar */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search recipes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-3 pl-10 pr-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base"
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Filter Toggle */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Found {filteredRecipes.length} recipes
+              </p>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+                </svg>
+                <span className="text-sm font-medium">Filters</span>
+              </button>
+            </div>
+
+            {/* Filters Panel */}
+            {showFilters && (
+              <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {categories.map(category => (
+                      <button
+                        key={category}
+                        onClick={() => setSelectedCategory(category)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          selectedCategory === category
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Time Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Cooking Time: {maxTime} minutes
+                  </label>
+                  <input
+                    type="range"
+                    min="10"
+                    max="180"
+                    step="10"
+                    value={maxTime}
+                    onChange={(e) => setMaxTime(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>10 min</span>
+                    <span>3 hours</span>
+                  </div>
+                </div>
+
+                {/* Sort Options */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort by</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { value: 'newest', label: 'Newest' },
+                      { value: 'oldest', label: 'Oldest' },
+                      { value: 'time', label: 'Quick First' },
+                      { value: 'likes', label: 'Most Liked' }
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => setSortBy(option.value)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          sortBy === option.value
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Clear Filters */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setSearchTerm('')
+                      setSelectedCategory('All')
+                      setMaxTime(120)
+                      setSortBy('newest')
+                    }}
+                    className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {recipesLoading ? (
             <div className="flex items-center justify-center py-12 sm:py-20">
               <div className="animate-spin rounded-full h-20 w-20 sm:h-32 sm:w-32 border-b-2 border-orange-500"></div>
             </div>
-          ) : recipes.length > 0 ? (
+          ) : filteredRecipes.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-              {recipes.map((recipe) => (
+              {filteredRecipes.map((recipe) => (
                 <div
                   key={recipe.id}
                   className="bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105"
@@ -218,19 +391,44 @@ export default function Home() {
             </div>
           ) : (
             <div className="text-center py-12 sm:py-20">
-              <div className="text-4xl sm:text-6xl mb-4">📝</div>
-              <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">
-                No recipes yet
-              </h3>
-              <p className="text-sm sm:text-base text-gray-500 mb-6">
-                Be the first to share a delicious recipe!
-              </p>
-              <Link
-                href="/create"
-                className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 sm:px-8 py-3 rounded-lg hover:scale-105 transition-transform font-semibold inline-block"
-              >
-                Create First Recipe
-              </Link>
+              {recipes.length === 0 ? (
+                <>
+                  <div className="text-4xl sm:text-6xl mb-4">📝</div>
+                  <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">
+                    No recipes yet
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-500 mb-6">
+                    Be the first to share a delicious recipe!
+                  </p>
+                  <Link
+                    href="/create"
+                    className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 sm:px-8 py-3 rounded-lg hover:scale-105 transition-transform font-semibold inline-block"
+                  >
+                    Create First Recipe
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <div className="text-4xl sm:text-6xl mb-4">🔍</div>
+                  <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">
+                    No recipes found
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-500 mb-6">
+                    Try adjusting your search or filters to find what you're looking for.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSearchTerm('')
+                      setSelectedCategory('All')
+                      setMaxTime(120)
+                      setSortBy('newest')
+                    }}
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg hover:scale-105 transition-transform font-semibold"
+                  >
+                    Clear Filters
+                  </button>
+                </>
+              )}
             </div>
           )}
         </main>
