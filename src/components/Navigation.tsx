@@ -11,11 +11,7 @@ import {
   LogOut, 
   Menu, 
   X, 
-  Home, 
-  Search,
-  Heart,
-  BookOpen,
-  Settings
+  Home
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
@@ -76,11 +72,19 @@ export const Navigation = () => {
                   </Link>
                   
                   <Link 
+                    href="/profile" 
+                    className="flex items-center space-x-1 text-gray-700 hover:text-orange-600 transition-colors"
+                  >
+                    <User className="w-5 h-5" />
+                    <span>Profile</span>
+                  </Link>
+                  
+                  <Link 
                     href="/create" 
                     className="flex items-center space-x-1 bg-orange-500 text-white px-4 py-2 rounded-full hover:bg-orange-600 transition-colors font-medium"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Create</span>
+                    <span>Create Recipe</span>
                   </Link>
                   
                   <Link 
@@ -88,78 +92,16 @@ export const Navigation = () => {
                     className="flex items-center space-x-1 bg-purple-500 text-white px-4 py-2 rounded-full hover:bg-purple-600 transition-colors font-medium"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Story</span>
+                    <span>Create Story</span>
                   </Link>
 
-                  <div className="relative">
-                    <button
-                      onClick={toggleProfileMenu}
-                      className="flex items-center space-x-1 text-gray-700 hover:text-orange-600 transition-colors"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-semibold">
-                        {user.user_metadata?.avatar_url ? (
-                          <img 
-                            src={user.user_metadata.avatar_url} 
-                            alt="Profile" 
-                            className="w-full h-full rounded-full object-cover"
-                          />
-                        ) : (
-                          <User className="w-5 h-5" />
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Desktop Profile Dropdown */}
-                    {isProfileMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                        <Link 
-                          href="/profile" 
-                          className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={closeMenus}
-                        >
-                          <User className="w-4 h-4" />
-                          <span>Profile</span>
-                        </Link>
-                        
-                        <Link 
-                          href="/" 
-                          className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={closeMenus}
-                        >
-                          <User className="w-4 h-4" />
-                          <span>Profile</span>
-                        </Link>
-                        
-                        <Link 
-                          href="/" 
-                          className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={closeMenus}
-                        >
-                          <BookOpen className="w-4 h-4" />
-                          <span>My Recipes</span>
-                        </Link>
-                        
-                        <Link 
-                          href="/" 
-                          className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={closeMenus}
-                        >
-                          <Heart className="w-4 h-4" />
-                          <span>Favorites</span>
-                        </Link>
-                        
-                        <hr className="my-2 border-gray-200" />
-                        
-                        <button 
-                          onClick={handleSignOut}
-                          className="w-full flex items-center space-x-2 px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          <span>Sign Out</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <button 
+                    onClick={handleSignOut}
+                    className="flex items-center space-x-1 text-red-600 hover:text-red-700 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
                 </>
               ) : (
                 <div className="flex items-center space-x-4">
