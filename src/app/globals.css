@@ -34,3 +34,141 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #ea580c;
 }
+/* Add this to your global CSS file (globals.css) */
+
+/* Custom breakpoint for very small phones */
+@media (min-width: 375px) {
+  .xs\:block {
+    display: block;
+  }
+  .xs\:hidden {
+    display: none;
+  }
+}
+
+/* Ensure proper viewport height on mobile */
+.min-h-screen-mobile {
+  min-height: 100vh;
+  min-height: 100dvh; /* Modern browsers */
+  min-height: -webkit-fill-available; /* Safari iOS */
+}
+
+/* Better touch targets for mobile */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Improved text readability on mobile */
+.mobile-text {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Better scroll behavior */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Card hover effects that work better on mobile */
+@media (hover: hover) and (pointer: fine) {
+  .hover-scale:hover {
+    transform: scale(1.05);
+  }
+  
+  .hover-shadow:hover {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+}
+
+/* Mobile-first animations */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Better form inputs on mobile */
+.mobile-input {
+  font-size: 16px; /* Prevents zoom on iOS */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Safe area padding for phones with notches */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Prevent horizontal scroll */
+.overflow-x-hidden {
+  overflow-x: hidden;
+}
+
+/* Better story viewer on mobile */
+.story-container {
+  height: 100vh;
+  height: 100dvh;
+  max-height: -webkit-fill-available;
+}
+
+/* Grid improvements for mobile */
+.mobile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .mobile-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
+/* Better button sizing for touch */
+.mobile-button {
+  min-height: 48px;
+  padding: 12px 24px;
+  touch-action: manipulation;
+}
+
+/* Improved navigation for mobile */
+.mobile-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
