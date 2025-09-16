@@ -40,7 +40,7 @@ export default function Home() {
     if (searchTerm.trim()) {
       filtered = filtered.filter(recipe =>
         recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        recipe.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (recipe.description && recipe.description.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     }
 
