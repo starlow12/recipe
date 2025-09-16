@@ -24,7 +24,6 @@ export const Navigation = () => {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
 
   const handleSignOut = async () => {
     try {
@@ -34,7 +33,6 @@ export const Navigation = () => {
       toast.success('Signed out successfully!')
       router.push('/')
       setIsMenuOpen(false)
-      setIsProfileMenuOpen(false)
     } catch (error) {
       console.error('Sign out error:', error)
       toast.error('Failed to sign out')
@@ -43,17 +41,10 @@ export const Navigation = () => {
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
-    setIsProfileMenuOpen(false)
-  }
-
-  const toggleProfileMenu = () => {
-    setIsProfileMenuOpen(!isProfileMenuOpen)
-    setIsMenuOpen(false)
   }
 
   const closeMenus = () => {
     setIsMenuOpen(false)
-    setIsProfileMenuOpen(false)
   }
 
   return (
@@ -225,7 +216,7 @@ export const Navigation = () => {
                     </div>
                   </div>
 
-                  {/* Navigation Links - Simplified */}
+                  {/* Navigation Links - Simple 4 items */}
                   <Link 
                     href="/" 
                     className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -233,6 +224,15 @@ export const Navigation = () => {
                   >
                     <Home className="w-5 h-5" />
                     <span className="font-medium">Home</span>
+                  </Link>
+                  
+                  <Link 
+                    href="/profile" 
+                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    onClick={closeMenus}
+                  >
+                    <User className="w-5 h-5" />
+                    <span className="font-medium">Profile</span>
                   </Link>
                   
                   <Link 
@@ -286,8 +286,8 @@ export const Navigation = () => {
         )}
       </nav>
 
-      {/* Overlay for closing menus when clicking outside */}
-      {(isMenuOpen || isProfileMenuOpen) && (
+      {/* Overlay for closing menu when clicking outside */}
+      {isMenuOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-20 z-30"
           onClick={closeMenus}
