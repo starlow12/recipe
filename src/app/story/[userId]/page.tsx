@@ -302,7 +302,7 @@ export default function StoryViewerPage() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      <div className="max-w-md mx-auto bg-black relative h-screen">
+      <div className="w-full max-w-md mx-auto bg-black relative" style={{ height: '100vh', minHeight: '100dvh' }}>
         {/* Progress Bars */}
         <div className="absolute top-0 left-0 right-0 z-30 p-2">
           <div className="flex space-x-1">
