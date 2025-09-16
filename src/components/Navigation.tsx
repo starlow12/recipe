@@ -84,13 +84,13 @@ export const Navigation = () => {
                     <span>Home</span>
                   </Link>
                   
-                  <Link 
-                    href="/search" 
-                    className="flex items-center space-x-1 text-gray-700 hover:text-orange-600 transition-colors"
+                  <button 
+                    className="flex items-center space-x-1 text-gray-500 cursor-not-allowed"
+                    disabled
                   >
                     <Search className="w-5 h-5" />
-                    <span>Search</span>
-                  </Link>
+                    <span>Search (Soon)</span>
+                  </button>
                   
                   <Link 
                     href="/create" 
@@ -138,23 +138,21 @@ export const Navigation = () => {
                           <span>Profile</span>
                         </Link>
                         
-                        <Link 
-                          href="/my-recipes" 
-                          className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={closeMenus}
+                        <button 
+                          className="flex items-center space-x-2 px-4 py-2 text-gray-400 cursor-not-allowed"
+                          disabled
                         >
                           <BookOpen className="w-4 h-4" />
-                          <span>My Recipes</span>
-                        </Link>
+                          <span>My Recipes (Soon)</span>
+                        </button>
                         
-                        <Link 
-                          href="/favorites" 
-                          className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={closeMenus}
+                        <button 
+                          className="flex items-center space-x-2 px-4 py-2 text-gray-400 cursor-not-allowed"
+                          disabled
                         >
                           <Heart className="w-4 h-4" />
-                          <span>Favorites</span>
-                        </Link>
+                          <span>Favorites (Soon)</span>
+                        </button>
                         
                         <hr className="my-2 border-gray-200" />
                         
@@ -234,14 +232,13 @@ export const Navigation = () => {
                     <span className="font-medium">Home</span>
                   </Link>
                   
-                  <Link 
-                    href="/search" 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    onClick={closeMenus}
+                  <button 
+                    className="flex items-center space-x-3 px-3 py-3 text-gray-400 cursor-not-allowed rounded-lg"
+                    disabled
                   >
                     <Search className="w-5 h-5" />
-                    <span className="font-medium">Search</span>
-                  </Link>
+                    <span className="font-medium">Search (Coming Soon)</span>
+                  </button>
                   
                   <Link 
                     href="/create" 
@@ -261,32 +258,29 @@ export const Navigation = () => {
                     <span>Create Story</span>
                   </Link>
                   
-                  <Link 
-                    href="/profile" 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    onClick={closeMenus}
+                  <button 
+                    className="flex items-center space-x-3 px-3 py-3 text-gray-400 cursor-not-allowed rounded-lg"
+                    disabled
                   >
                     <User className="w-5 h-5" />
-                    <span className="font-medium">Profile</span>
-                  </Link>
+                    <span className="font-medium">Profile (Coming Soon)</span>
+                  </button>
                   
-                  <Link 
-                    href="/my-recipes" 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    onClick={closeMenus}
+                  <button 
+                    className="flex items-center space-x-3 px-3 py-3 text-gray-400 cursor-not-allowed rounded-lg"
+                    disabled
                   >
                     <BookOpen className="w-5 h-5" />
-                    <span className="font-medium">My Recipes</span>
-                  </Link>
+                    <span className="font-medium">My Recipes (Coming Soon)</span>
+                  </button>
                   
-                  <Link 
-                    href="/favorites" 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    onClick={closeMenus}
+                  <button 
+                    className="flex items-center space-x-3 px-3 py-3 text-gray-400 cursor-not-allowed rounded-lg"
+                    disabled
                   >
                     <Heart className="w-5 h-5" />
-                    <span className="font-medium">Favorites</span>
-                  </Link>
+                    <span className="font-medium">Favorites (Coming Soon)</span>
+                  </button>
                   
                   <hr className="my-3 border-gray-200" />
                   
