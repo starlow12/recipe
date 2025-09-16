@@ -64,11 +64,10 @@ export default function ProfilePage() {
     }
   }, [user])
 
-  // Add this new useEffect to refresh when returning from edit page
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && user) {
-        fetchProfile() // Refresh profile when page becomes visible
+        fetchProfile()
       }
     }
 
@@ -102,9 +101,9 @@ export default function ProfilePage() {
       const { count: recipesCount } = await supabase
         .from('recipes')
         .select('*', { count: 'exact', head: true })
-        .eq('created_by', user.id)
+        .eq('user_id', user.id)
 
-      // Get followers count
+      // Get followers count  
       const { count: followersCount } = await supabase
         .from('follows')
         .select('*', { count: 'exact', head: true })
@@ -120,7 +119,7 @@ export default function ProfilePage() {
       const { data: userRecipes } = await supabase
         .from('recipes')
         .select('likes_count')
-        .eq('created_by', user.id)
+        .eq('user_id', user.id)
 
       const likesCount = userRecipes?.reduce((total: number, recipe: any) => total + (recipe.likes_count || 0), 0) || 0
 
@@ -142,7 +141,7 @@ export default function ProfilePage() {
       const { data, error } = await supabase
         .from('recipes')
         .select('*')
-        .eq('created_by', user.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -230,15 +229,24 @@ export default function ProfilePage() {
     setUploadingImage(true)
 
     try {
+      // Delete old avatar if exists
+      if (profile?.avatar_url && profile.avatar_url.includes('supabase')) {
+        const oldPath = profile.avatar_url.split('/').pop()
+        if (oldPath) {
+          await supabase.storage
+            .from('avatars')
+            .remove([oldPath])
+        }
+      }
+
       // Create unique filename
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
-      const filePath = `avatars/${fileName}`
 
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage - Fixed path
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file)
+        .upload(fileName, file) // Changed from filePath to just fileName
 
       if (uploadError) {
         console.error('Upload error:', uploadError)
@@ -249,11 +257,10 @@ export default function ProfilePage() {
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('avatars')
-        .getPublicUrl(filePath)
+        .getPublicUrl(fileName) // Changed from filePath to fileName
 
       const publicUrl = urlData.publicUrl
       
-      // Debug: log the URL
       console.log('Generated avatar URL:', publicUrl)
 
       // Update profile with new avatar URL
@@ -271,9 +278,8 @@ export default function ProfilePage() {
         return
       }
 
-      // Update local state and refresh profile
+      // Update local state
       setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null)
-      await fetchProfile() // Refresh from database
       toast.success('Profile picture updated successfully!')
 
     } catch (error) {
@@ -325,13 +331,13 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-yellow-50">
       <Navigation />
       
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Profile Header */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
-          <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 mb-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-6 sm:space-y-0 sm:space-x-6 lg:space-x-8">
             {/* Profile Picture */}
-            <div className="relative">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg overflow-hidden">
+            <div className="relative flex-shrink-0">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg overflow-hidden">
                 {profile?.avatar_url ? (
                   <img 
                     src={profile.avatar_url} 
@@ -339,13 +345,12 @@ export default function ProfilePage() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User className="w-16 h-16 text-white" />
+                  <User className="w-10 h-10 sm:w-16 sm:h-16 text-white" />
                 )}
                 
-                {/* Upload overlay when uploading */}
                 {uploadingImage && (
                   <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white"></div>
                   </div>
                 )}
               </div>
@@ -365,19 +370,19 @@ export default function ProfilePage() {
                   uploadingImage ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
-                <Camera className="w-5 h-5 text-gray-600" />
+                <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
               </label>
             </div>
 
             {/* Profile Info */}
-            <div className="flex-1 text-center md:text-left">
-              <div className="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2 md:mb-0">
+            <div className="flex-1 text-center sm:text-left min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-4">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-0 truncate">
                   @{profile?.username || user?.email?.split('@')[0] || 'user'}
                 </h1>
                 <Link 
                   href="/profile/edit"
-                  className="bg-gray-100 hover:bg-gray-200 px-6 py-2 rounded-full transition-colors inline-flex items-center"
+                  className="bg-gray-100 hover:bg-gray-200 px-4 sm:px-6 py-2 rounded-full transition-colors inline-flex items-center justify-center text-sm sm:text-base"
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   Edit Profile
@@ -385,30 +390,30 @@ export default function ProfilePage() {
               </div>
 
               {profile?.full_name && (
-                <h2 className="text-xl text-gray-700 mb-4 font-medium">
+                <h2 className="text-lg sm:text-xl text-gray-700 mb-4 font-medium">
                   {profile.full_name}
                 </h2>
               )}
 
               {/* Stats */}
-              <div className="flex justify-center md:justify-start space-x-8 mb-4">
+              <div className="flex justify-center sm:justify-start space-x-6 sm:space-x-8 mb-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{stats.recipesCount}</div>
-                  <div className="text-sm text-gray-600">Recipes</div>
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.recipesCount}</div>
+                  <div className="text-xs sm:text-sm text-gray-600">Recipes</div>
                 </div>
-                <Link href="/profile/followers?tab=followers" className="text-center cursor-pointer hover:text-orange-500 transition-colors">
-                  <div className="text-2xl font-bold text-gray-900">{stats.followersCount}</div>
-                  <div className="text-sm text-gray-600">Followers</div>
-                </Link>
-                <Link href="/profile/followers?tab=following" className="text-center cursor-pointer hover:text-orange-500 transition-colors">
-                  <div className="text-2xl font-bold text-gray-900">{stats.followingCount}</div>
-                  <div className="text-sm text-gray-600">Following</div>
-                </Link>
+                <div className="text-center cursor-pointer hover:text-orange-500 transition-colors">
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.followersCount}</div>
+                  <div className="text-xs sm:text-sm text-gray-600">Followers</div>
+                </div>
+                <div className="text-center cursor-pointer hover:text-orange-500 transition-colors">
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.followingCount}</div>
+                  <div className="text-xs sm:text-sm text-gray-600">Following</div>
+                </div>
               </div>
 
               {/* Bio */}
-              <p className="text-gray-600 max-w-md">
-                {profile?.bio || "No bio yet. Share something about your cooking journey! 👨‍🍳"}
+              <p className="text-gray-600 text-sm sm:text-base max-w-2xl">
+                {profile?.bio || "No bio yet. Share something about your cooking journey!"}
               </p>
             </div>
           </div>
@@ -416,10 +421,10 @@ export default function ProfilePage() {
 
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-lg">
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-200 overflow-x-auto">
             <button 
               onClick={() => setActiveTab('recipes')}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+              className={`flex-shrink-0 py-3 sm:py-4 px-4 sm:px-6 text-center font-medium transition-colors text-sm sm:text-base ${
                 activeTab === 'recipes' 
                   ? 'text-orange-500 border-b-2 border-orange-500' 
                   : 'text-gray-500 hover:text-gray-700'
@@ -429,37 +434,37 @@ export default function ProfilePage() {
             </button>
             <button 
               onClick={() => setActiveTab('saved')}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+              className={`flex-shrink-0 py-3 sm:py-4 px-4 sm:px-6 text-center font-medium transition-colors text-sm sm:text-base ${
                 activeTab === 'saved' 
                   ? 'text-orange-500 border-b-2 border-orange-500' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Saved Recipes ({savedRecipes.length})
+              Saved ({savedRecipes.length})
             </button>
             <button 
               onClick={() => setActiveTab('liked')}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+              className={`flex-shrink-0 py-3 sm:py-4 px-4 sm:px-6 text-center font-medium transition-colors text-sm sm:text-base ${
                 activeTab === 'liked' 
                   ? 'text-orange-500 border-b-2 border-orange-500' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Liked Recipes ({likedRecipes.length})
+              Liked ({likedRecipes.length})
             </button>
           </div>
 
           {/* Recipe Grid */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500"></div>
+                <div className="animate-spin rounded-full h-12 w-12 sm:h-16 sm:w-16 border-b-2 border-orange-500"></div>
               </div>
             ) : getCurrentRecipes().length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                 {getCurrentRecipes().map((recipe: Recipe) => (
                   <Link href={`/recipe/${recipe.id}`} key={recipe.id}>
-                    <div className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer group">
+                    <div className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer group">
                       <div className="aspect-square bg-gradient-to-br from-orange-200 to-red-200 flex items-center justify-center group-hover:scale-105 transition-transform relative overflow-hidden">
                         {recipe.image_url ? (
                           <img 
@@ -468,27 +473,27 @@ export default function ProfilePage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <span className="text-4xl">🍽️</span>
+                          <span className="text-3xl sm:text-4xl">🍽️</span>
                         )}
                       </div>
-                      <div className="p-4">
+                      <div className="p-3 sm:p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="bg-orange-100 text-orange-600 px-2 py-1 rounded-full text-xs font-medium">
                             {recipe.category}
                           </span>
                           {activeTab !== 'recipes' && recipe.profiles && (
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-gray-500 truncate ml-2">
                               by {recipe.profiles.full_name || recipe.profiles.username}
                             </span>
                           )}
                         </div>
-                        <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
+                        <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1 text-sm sm:text-base">
                           {recipe.title}
                         </h3>
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">
                           {recipe.description}
                         </p>
-                        <div className="flex items-center justify-between text-sm text-gray-500">
+                        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
                           <div className="flex items-center space-x-1">
                             <Clock className="w-3 h-3" />
                             <span>{(recipe.prep_time || 0) + (recipe.cook_time || 0)} min</span>
@@ -510,16 +515,16 @@ export default function ProfilePage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20">
-                <div className="text-6xl mb-4">
+              <div className="text-center py-12 sm:py-20">
+                <div className="text-4xl sm:text-6xl mb-4">
                   {activeTab === 'recipes' ? '📝' : activeTab === 'saved' ? '🔖' : '❤️'}
                 </div>
-                <h3 className="text-xl font-medium text-gray-900 mb-2">
+                <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">
                   {activeTab === 'recipes' && 'No recipes yet'}
                   {activeTab === 'saved' && 'No saved recipes'}
                   {activeTab === 'liked' && 'No liked recipes yet'}
                 </h3>
-                <p className="text-gray-500 mb-6">
+                <p className="text-sm sm:text-base text-gray-500 mb-6">
                   {activeTab === 'recipes' && 'Start sharing your delicious recipes!'}
                   {activeTab === 'saved' && 'Save recipes you want to try later'}
                   {activeTab === 'liked' && 'Like recipes to see them here'}
@@ -527,7 +532,7 @@ export default function ProfilePage() {
                 {activeTab === 'recipes' && (
                   <Link
                     href="/create"
-                    className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-3 rounded-lg hover:scale-105 transition-transform font-semibold"
+                    className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 sm:px-8 py-3 rounded-lg hover:scale-105 transition-transform font-semibold text-sm sm:text-base"
                   >
                     Create Your First Recipe
                   </Link>
