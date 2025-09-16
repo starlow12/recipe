@@ -85,14 +85,6 @@ export const Navigation = () => {
                   </Link>
                   
                   <Link 
-                    href="/" 
-                    className="flex items-center space-x-1 text-gray-700 hover:text-orange-600 transition-colors"
-                  >
-                    <Search className="w-5 h-5" />
-                    <span>Search</span>
-                  </Link>
-                  
-                  <Link 
                     href="/create" 
                     className="flex items-center space-x-1 bg-orange-500 text-white px-4 py-2 rounded-full hover:bg-orange-600 transition-colors font-medium"
                   >
@@ -233,7 +225,7 @@ export const Navigation = () => {
                     </div>
                   </div>
 
-                  {/* Navigation Links */}
+                  {/* Navigation Links - Simplified */}
                   <Link 
                     href="/" 
                     className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -241,15 +233,6 @@ export const Navigation = () => {
                   >
                     <Home className="w-5 h-5" />
                     <span className="font-medium">Home</span>
-                  </Link>
-                  
-                  <Link 
-                    href="/" 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    onClick={closeMenus}
-                  >
-                    <Search className="w-5 h-5" />
-                    <span className="font-medium">Search</span>
                   </Link>
                   
                   <Link 
@@ -268,33 +251,6 @@ export const Navigation = () => {
                   >
                     <Plus className="w-5 h-5" />
                     <span>Create Story</span>
-                  </Link>
-                  
-                  <Link 
-                    href="/" 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    onClick={closeMenus}
-                  >
-                    <User className="w-5 h-5" />
-                    <span className="font-medium">Profile</span>
-                  </Link>
-                  
-                  <Link 
-                    href="/" 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    onClick={closeMenus}
-                  >
-                    <BookOpen className="w-5 h-5" />
-                    <span className="font-medium">My Recipes</span>
-                  </Link>
-                  
-                  <Link 
-                    href="/" 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    onClick={closeMenus}
-                  >
-                    <Heart className="w-5 h-5" />
-                    <span className="font-medium">Favorites</span>
                   </Link>
                   
                   <hr className="my-3 border-gray-200" />
