@@ -101,7 +101,7 @@ export default function ProfilePage() {
       const { count: recipesCount } = await supabase
         .from('recipes')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .eq('created_by', user.id) // Changed from user_id to created_by
 
       // Get followers count  
       const { count: followersCount } = await supabase
@@ -119,7 +119,7 @@ export default function ProfilePage() {
       const { data: userRecipes } = await supabase
         .from('recipes')
         .select('likes_count')
-        .eq('user_id', user.id)
+        .eq('created_by', user.id) // Changed from user_id to created_by
 
       const likesCount = userRecipes?.reduce((total: number, recipe: any) => total + (recipe.likes_count || 0), 0) || 0
 
@@ -141,7 +141,7 @@ export default function ProfilePage() {
       const { data, error } = await supabase
         .from('recipes')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('created_by', user.id) // Changed from user_id to created_by
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -243,10 +243,10 @@ export default function ProfilePage() {
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
 
-      // Upload to Supabase Storage - Fixed path
+      // Upload to Supabase Storage - Create bucket if doesn't exist
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file) // Changed from filePath to just fileName
+        .from('recipe-images') // Changed from 'avatars' to 'recipe-images' 
+        .upload(`avatars/${fileName}`, file) // Keep avatars folder structure
 
       if (uploadError) {
         console.error('Upload error:', uploadError)
@@ -256,8 +256,8 @@ export default function ProfilePage() {
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName) // Changed from filePath to fileName
+        .from('recipe-images') // Changed to match upload bucket
+        .getPublicUrl(`avatars/${fileName}`) // Match upload path
 
       const publicUrl = urlData.publicUrl
       
