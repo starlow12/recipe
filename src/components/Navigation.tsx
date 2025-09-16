@@ -84,13 +84,13 @@ export const Navigation = () => {
                     <span>Home</span>
                   </Link>
                   
-                  <button 
-                    className="flex items-center space-x-1 text-gray-500 cursor-not-allowed"
-                    disabled
+                  <Link 
+                    href="/" 
+                    className="flex items-center space-x-1 text-gray-700 hover:text-orange-600 transition-colors"
                   >
                     <Search className="w-5 h-5" />
-                    <span>Search (Soon)</span>
-                  </button>
+                    <span>Search</span>
+                  </Link>
                   
                   <Link 
                     href="/create" 
@@ -138,21 +138,32 @@ export const Navigation = () => {
                           <span>Profile</span>
                         </Link>
                         
-                        <button 
-                          className="flex items-center space-x-2 px-4 py-2 text-gray-400 cursor-not-allowed"
-                          disabled
+                        <Link 
+                          href="/" 
+                          className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                          onClick={closeMenus}
+                        >
+                          <User className="w-4 h-4" />
+                          <span>Profile</span>
+                        </Link>
+                        
+                        <Link 
+                          href="/" 
+                          className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                          onClick={closeMenus}
                         >
                           <BookOpen className="w-4 h-4" />
-                          <span>My Recipes (Soon)</span>
-                        </button>
+                          <span>My Recipes</span>
+                        </Link>
                         
-                        <button 
-                          className="flex items-center space-x-2 px-4 py-2 text-gray-400 cursor-not-allowed"
-                          disabled
+                        <Link 
+                          href="/" 
+                          className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                          onClick={closeMenus}
                         >
                           <Heart className="w-4 h-4" />
-                          <span>Favorites (Soon)</span>
-                        </button>
+                          <span>Favorites</span>
+                        </Link>
                         
                         <hr className="my-2 border-gray-200" />
                         
@@ -232,13 +243,14 @@ export const Navigation = () => {
                     <span className="font-medium">Home</span>
                   </Link>
                   
-                  <button 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-400 cursor-not-allowed rounded-lg"
-                    disabled
+                  <Link 
+                    href="/" 
+                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    onClick={closeMenus}
                   >
                     <Search className="w-5 h-5" />
-                    <span className="font-medium">Search (Coming Soon)</span>
-                  </button>
+                    <span className="font-medium">Search</span>
+                  </Link>
                   
                   <Link 
                     href="/create" 
@@ -258,29 +270,32 @@ export const Navigation = () => {
                     <span>Create Story</span>
                   </Link>
                   
-                  <button 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-400 cursor-not-allowed rounded-lg"
-                    disabled
+                  <Link 
+                    href="/" 
+                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    onClick={closeMenus}
                   >
                     <User className="w-5 h-5" />
-                    <span className="font-medium">Profile (Coming Soon)</span>
-                  </button>
+                    <span className="font-medium">Profile</span>
+                  </Link>
                   
-                  <button 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-400 cursor-not-allowed rounded-lg"
-                    disabled
+                  <Link 
+                    href="/" 
+                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    onClick={closeMenus}
                   >
                     <BookOpen className="w-5 h-5" />
-                    <span className="font-medium">My Recipes (Coming Soon)</span>
-                  </button>
+                    <span className="font-medium">My Recipes</span>
+                  </Link>
                   
-                  <button 
-                    className="flex items-center space-x-3 px-3 py-3 text-gray-400 cursor-not-allowed rounded-lg"
-                    disabled
+                  <Link 
+                    href="/" 
+                    className="flex items-center space-x-3 px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    onClick={closeMenus}
                   >
                     <Heart className="w-5 h-5" />
-                    <span className="font-medium">Favorites (Coming Soon)</span>
-                  </button>
+                    <span className="font-medium">Favorites</span>
+                  </Link>
                   
                   <hr className="my-3 border-gray-200" />
                   
